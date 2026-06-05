@@ -28,6 +28,21 @@ export function createDefaultPanelBackgroundConfig(): PanelBackgroundConfig {
   };
 }
 
+export function normalizePanelBackgroundConfig(input?: Partial<PanelBackgroundConfig>): PanelBackgroundConfig {
+  const fallback = createDefaultPanelBackgroundConfig();
+  const history = Array.isArray(input?.history) ? input.history.filter((item) => item.id && item.url).slice(0, 10) : [];
+  const activeId = history.some((item) => item.id === input?.activeId) ? input?.activeId || '' : '';
+  return {
+    ...fallback,
+    ...input,
+    activeId,
+    theme: input?.theme === 'dark' ? 'dark' : 'light',
+    fit: input?.fit === 'contain' || input?.fit === 'auto' ? input.fit : 'cover',
+    opacity: typeof input?.opacity === 'number' ? Math.min(1, Math.max(0, input.opacity)) : fallback.opacity,
+    history
+  };
+}
+
 export function upsertPanelBackgroundItem(config: PanelBackgroundConfig, input: Omit<PanelBackgroundItem, 'id' | 'createdAt'>): PanelBackgroundConfig {
   const now = Date.now();
   const item: PanelBackgroundItem = {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { Component, useEffect, useRef, useState, type ErrorInfo, type ReactNode } from 'react';
 import Button from 'antd/es/button';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneLight } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -13,7 +13,7 @@ export function CodeBlock({ className, children }: { className?: string; childre
   // inline code
   if (!className) return <code className="inline-code">{code}</code>;
 
-  if (language === 'mermaid') return <MermaidBlock code={code} />;
+  if (language === 'mermaid') return <RenderErrorBoundary language="mermaid"><MermaidBlock code={code} /></RenderErrorBoundary>;
   if (language === 'plantuml') return <PlantUMLBlock code={code} />;
 
   return <CodeHighlight language={language} code={code} />;
@@ -45,17 +45,69 @@ function MermaidBlock({ code }: { code: string }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    if (!ref.current) return;
+    const container = ref.current;
+    if (!container) return;
+
+    let active = true;
     const id = `mermaid-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setError('');
+    container.innerHTML = '';
+
     mermaid.render(id, code).then(({ svg }) => {
-      if (ref.current) ref.current.innerHTML = svg;
+      if (!active) return;
+      container.innerHTML = svg;
     }).catch((err: unknown) => {
-      setError(err instanceof Error ? err.message : String(err));
-    });
+      if (!active) return;
+      container.innerHTML = '';
+      setError(formatRenderError(err));
+    }).finally(() => removeLeakedMermaidNode(id, container));
+
+    return () => {
+      active = false;
+      container.innerHTML = '';
+      removeLeakedMermaidNode(id, container);
+    };
   }, [code]);
 
-  if (error) return <pre className="code-error">Mermaid 渲染失败: {error}</pre>;
-  return <div className="mermaid-block" ref={ref} />;
+  return <div className="code-block mermaid-code-block">
+    <div className="code-header">
+      <span className="code-lang">mermaid</span>
+    </div>
+    {error && <pre className="code-error">Mermaid 渲染失败: {error}</pre>}
+    <div className="mermaid-block" ref={ref} hidden={!!error} />
+  </div>;
+}
+
+class RenderErrorBoundary extends Component<{ language: string; children: ReactNode }, { error: string }> {
+  state = { error: '' };
+
+  static getDerivedStateFromError(error: unknown) {
+    return { error: formatRenderError(error) };
+  }
+
+  componentDidCatch(_error: unknown, _info: ErrorInfo) {}
+
+  render() {
+    if (this.state.error) {
+      return <div className="code-block">
+        <div className="code-header">
+          <span className="code-lang">{this.props.language}</span>
+        </div>
+        <pre className="code-error">{this.props.language} 渲染失败: {this.state.error}</pre>
+      </div>;
+    }
+
+    return this.props.children;
+  }
+}
+
+function removeLeakedMermaidNode(id: string, container: HTMLElement) {
+  const node = document.getElementById(id);
+  if (node && node.parentElement !== container) node.remove();
+}
+
+function formatRenderError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 
 function PlantUMLBlock({ code }: { code: string }) {

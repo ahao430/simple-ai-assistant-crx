@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Button from 'antd/es/button';
 import Tabs from 'antd/es/tabs';
 import GithubOutlined from '@ant-design/icons/GithubOutlined';
+import MoonOutlined from '@ant-design/icons/MoonOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
+import SunOutlined from '@ant-design/icons/SunOutlined';
 import type { AgentConfig } from '../shared/agentConfig';
 import { AGENT_STORAGE_KEY, createDefaultAgentConfigs } from '../shared/agentConfig';
 import type { ImageAsset } from '../shared/assets';
@@ -11,7 +13,7 @@ import type { ModelConfig } from '../shared/modelConfig';
 import { MODEL_CAPABILITY_LABELS } from '../shared/modelConfig';
 import { findDefaultModel, getModelProviderGroupName } from '../shared/modelConfigUtils';
 import type { PageContext, SiteContext } from '../shared/siteCapability';
-import { PANEL_BACKGROUND_STORAGE_KEY, createDefaultPanelBackgroundConfig, upsertPanelBackgroundItem, type PanelBackgroundConfig } from '../shared/panelBackground';
+import { PANEL_BACKGROUND_STORAGE_KEY, createDefaultPanelBackgroundConfig, normalizePanelBackgroundConfig, upsertPanelBackgroundItem, type PanelBackgroundConfig } from '../shared/panelBackground';
 import { sendRuntimeMessage } from '../shared/runtime';
 import { ChatPanel } from './ChatPanel';
 import { TextPanel } from './TextPanel';
@@ -84,8 +86,7 @@ export function App() {
   const imageModelOptions = useMemo(() => createGroupedModelOptions(imageModels, true), [imageModels]);
   const activeBackground = panelBackground.history.find((item) => item.id === panelBackground.activeId);
   const appStyle = {
-    '--panel-bg-image': activeBackground ? `url(${activeBackground.url})` : 'none',
-    '--panel-bg-size': panelBackground.fit,
+    '--panel-bg-fit': panelBackground.fit === 'auto' ? 'none' : panelBackground.fit,
     '--panel-bg-opacity': String(panelBackground.opacity)
   } as CSSProperties;
 
@@ -140,14 +141,18 @@ export function App() {
 
   async function loadPanelBackground() {
     const result = await chrome.storage.local.get(PANEL_BACKGROUND_STORAGE_KEY);
-    const saved = result[PANEL_BACKGROUND_STORAGE_KEY] as Partial<PanelBackgroundConfig> | undefined;
-    setPanelBackground({ ...createDefaultPanelBackgroundConfig(), ...saved });
+    setPanelBackground(normalizePanelBackgroundConfig(result[PANEL_BACKGROUND_STORAGE_KEY] as Partial<PanelBackgroundConfig> | undefined));
+  }
+
+  async function savePanelBackground(update: (current: PanelBackgroundConfig) => PanelBackgroundConfig) {
+    const result = await chrome.storage.local.get(PANEL_BACKGROUND_STORAGE_KEY);
+    const next = normalizePanelBackgroundConfig(update(normalizePanelBackgroundConfig(result[PANEL_BACKGROUND_STORAGE_KEY] as Partial<PanelBackgroundConfig> | undefined)));
+    setPanelBackground(next);
+    await chrome.storage.local.set({ [PANEL_BACKGROUND_STORAGE_KEY]: next });
   }
 
   async function togglePanelTheme() {
-    const next: PanelBackgroundConfig = { ...panelBackground, theme: panelBackground.theme === 'dark' ? 'light' : 'dark' };
-    setPanelBackground(next);
-    await chrome.storage.local.set({ [PANEL_BACKGROUND_STORAGE_KEY]: next });
+    await savePanelBackground((current) => ({ ...current, theme: current.theme === 'dark' ? 'light' : 'dark' }));
   }
 
   function showToast(message: string) {
@@ -616,9 +621,7 @@ export function App() {
 
   async function setImageAsBackground(asset?: ImageAsset) {
     if (!asset?.dataUrl) return;
-    const next = upsertPanelBackgroundItem(panelBackground, { name: asset.prompt?.slice(0, 24) || '图片背景', url: asset.dataUrl });
-    setPanelBackground(next);
-    await chrome.storage.local.set({ [PANEL_BACKGROUND_STORAGE_KEY]: next });
+    await savePanelBackground((current) => upsertPanelBackgroundItem(current, { name: asset.prompt?.slice(0, 24) || '图片背景', url: asset.dataUrl }));
     showToast('已设为背景');
   }
 
@@ -634,10 +637,11 @@ export function App() {
 
   return (
     <main className={`app theme-${panelBackground.theme}`} style={appStyle}>
+      {activeBackground?.url && <img className="panel-background-image" src={activeBackground.url} alt="" />}
       {toast && <div className="toast">{toast}</div>}
       <div className="app-actions">
         <span className="app-version">v{extensionVersion}</span>
-        <Button size="small" onClick={togglePanelTheme}>{panelBackground.theme === 'dark' ? '浅' : '深'}</Button>
+        <Button size="small" icon={panelBackground.theme === 'dark' ? <SunOutlined /> : <MoonOutlined />} onClick={togglePanelTheme} title={panelBackground.theme === 'dark' ? '切换浅色模式' : '切换深色模式'} />
         <Button size="small" icon={<GithubOutlined />} onClick={() => chrome.tabs.create({ url: GITHUB_REPOSITORY_URL })} />
         <Button size="small" icon={<SettingOutlined />} onClick={() => chrome.runtime.openOptionsPage()} />
       </div>
@@ -707,6 +711,7 @@ export function App() {
             isGenerating={isGeneratingImage}
             onGenerate={generateImage}
             onCopyImage={copyImage}
+            onCopyText={copyText}
             onSetBackground={setImageAsBackground}
             onDeleteHistory={removeImageHistory}
           />

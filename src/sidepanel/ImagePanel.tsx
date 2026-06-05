@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import Button from 'antd/es/button';
 import Form from 'antd/es/form';
 import Input from 'antd/es/input';
+import Popconfirm from 'antd/es/popconfirm';
 import Select from 'antd/es/select';
 import Space from 'antd/es/space';
 import Upload from 'antd/es/upload';
@@ -28,6 +30,7 @@ export function ImagePanel(props: {
   isGenerating: boolean;
   onGenerate: () => void;
   onCopyImage: (asset?: ImageAsset) => void;
+  onCopyText: (text?: string) => void;
   onSetBackground: (asset?: ImageAsset) => void;
   onDeleteHistory: (id: string) => void;
 }) {
@@ -103,7 +106,7 @@ export function ImagePanel(props: {
             showUploadList={{ showPreviewIcon: false }}
             accept="image/*"
           >
-            参考图
+            <PlusOutlined />
           </Upload>
           <div className="composer-right">
             <Select className="composer-model" value={props.imageModelId || undefined} placeholder="模型" onChange={props.setImageModelId} options={props.imageModelOptions} size="small" />
@@ -129,7 +132,8 @@ export function ImagePanel(props: {
         <div>{selectedHistoryMeta.prompt}</div>
       </div>
       <Space wrap>
-        <Button size="small" onClick={() => props.onCopyImage(selectedHistory)}>复制</Button>
+        <Button size="small" onClick={() => props.onCopyImage(selectedHistory)}>复制图片</Button>
+        <Button size="small" onClick={() => props.onCopyText(selectedHistoryMeta.prompt)}>复制提示词</Button>
         <Button size="small" onClick={() => props.onSetBackground(selectedHistory)}>设为背景</Button>
         <Button size="small" onClick={() => downloadImage(selectedHistory)}>下载</Button>
         <Button size="small" onClick={() => {
@@ -146,13 +150,15 @@ export function ImagePanel(props: {
           <div className="image-history-prompt">{item.prompt}</div>
           <Space>
             <Button size="small" onClick={() => viewHistory(item)}>查看</Button>
-            <Button size="small" danger onClick={() => {
+            <Popconfirm title="删除这张图片历史？" okText="删除" cancelText="取消" onConfirm={() => {
               if (selectedHistoryMeta?.id === item.id) {
                 setSelectedHistory(undefined);
                 setSelectedHistoryMeta(undefined);
               }
               props.onDeleteHistory(item.id);
-            }}>删除</Button>
+            }}>
+              <Button size="small" danger>删除</Button>
+            </Popconfirm>
           </Space>
         </div>)}
       </div>

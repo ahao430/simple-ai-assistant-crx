@@ -3,6 +3,7 @@ import Input from 'antd/es/input';
 import Button from 'antd/es/button';
 import Form from 'antd/es/form';
 import List from 'antd/es/list';
+import Popconfirm from 'antd/es/popconfirm';
 import Select from 'antd/es/select';
 import Space from 'antd/es/space';
 import ReactMarkdown from 'react-markdown';
@@ -75,7 +76,8 @@ export function TextPanel(props: {
           <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]}>{selectedHistory.result}</ReactMarkdown>
         </div>
         <Space wrap>
-          <Button size="small" onClick={() => props.onCopyText(selectedHistory.result)}>复制</Button>
+          <Button size="small" onClick={() => props.onCopyText(selectedHistory.result)}>复制文案</Button>
+          <Button size="small" onClick={() => props.onCopyText(selectedHistory.prompt)}>复制提示词</Button>
           <Button size="small" onClick={() => setSelectedHistory(undefined)}>关闭</Button>
         </Space>
       </div>}
@@ -86,10 +88,12 @@ export function TextPanel(props: {
         dataSource={props.textHistory}
         renderItem={(item) => <List.Item actions={[
           <Button key="view" size="small" onClick={() => setSelectedHistory(item)}>查看</Button>,
-          <Button key="delete" size="small" danger onClick={() => {
+          <Popconfirm key="delete" title="删除这条文案历史？" okText="删除" cancelText="取消" onConfirm={() => {
             if (selectedHistory?.id === item.id) setSelectedHistory(undefined);
             props.onDeleteHistory(item.id);
-          }}>删除</Button>
+          }}>
+            <Button size="small" danger>删除</Button>
+          </Popconfirm>
         ]}>
           <List.Item.Meta title={item.prompt.slice(0, 40) || '文案生成'} description={new Date(item.createdAt).toLocaleString()} />
         </List.Item>}

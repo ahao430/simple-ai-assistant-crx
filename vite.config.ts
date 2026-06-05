@@ -12,13 +12,12 @@ export default defineConfig({
         sidepanel: resolve(__dirname, 'src/sidepanel/index.html'),
         options: resolve(__dirname, 'src/options/index.html'),
         background: resolve(__dirname, 'src/background/index.ts'),
-        common: resolve(__dirname, 'src/content/common.ts'),
-        yuque: resolve(__dirname, 'src/content/yuque.ts')
+        common: resolve(__dirname, 'src/content/common.ts')
       },
       output: {
         entryFileNames: (chunk) => {
           if (chunk.name === 'background') return 'background/index.js';
-          if (['common', 'yuque'].includes(chunk.name)) return 'content/[name].js';
+          if (chunk.name === 'common') return 'content/[name].js';
           return 'assets/[name]-[hash].js';
         },
         chunkFileNames: 'assets/[name]-[hash].js',

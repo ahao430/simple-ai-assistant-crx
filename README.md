@@ -10,8 +10,9 @@
 - 支持文本、视觉、图片生成和图片编辑能力标签。
 - 支持 OpenAI-compatible 文本聊天接口。
 - 支持 OpenAI-compatible 图片生成和图片编辑接口，例如 `gpt-image-2`。
-- 支持配置页管理模型配置。
+- 支持配置页管理模型配置、供应商模型列表缓存和 Agents 预设。
 - 支持 WebDAV 手动备份和恢复模型配置。
+- 支持浅色/深色主题、面板背景图、历史背景预览、复制和导出。
 - 支持扩展图标和工具栏图标。
 
 ## 站点能力
@@ -79,14 +80,14 @@ npm run build
 推送任意 tag 会触发 GitHub Actions 自动构建，并把 `dist/` 打包成 `.zip`、`.tar.gz`、`.tar.bz2` 后发布到 GitHub Release。
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.2
+git push origin v0.2.2
 ```
 
 安装 Release 包：
 
 1. 在 GitHub Release 下载压缩包，推荐下载 `.zip`。
-2. 解压压缩包，得到类似 `simple-ai-assistant-crx-v0.1.0/` 的目录。
+2. 解压压缩包，得到类似 `simple-ai-assistant-crx-v0.2.2/` 的目录。
 3. 打开 Chrome 扩展管理页：`chrome://extensions/`。
 4. 开启右上角“开发者模式”。
 5. 点击“加载已解压的扩展程序”，选择解压后的目录；也可以把解压后的目录拖入扩展管理页。

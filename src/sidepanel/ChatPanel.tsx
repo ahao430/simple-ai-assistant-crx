@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import Input from 'antd/es/input';
 import Button from 'antd/es/button';
 import Form from 'antd/es/form';
@@ -105,7 +106,7 @@ export function ChatPanel(props: {
           showUploadList={{ showPreviewIcon: false }}
           accept="image/*"
         >
-          传图
+          <PlusOutlined />
         </Upload>
         <div className="composer-right">
           <Select className="composer-model" value={props.textModelId || undefined} placeholder="模型" onChange={props.setTextModelId} options={props.textModelOptions} size="small" />

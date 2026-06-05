@@ -43,6 +43,14 @@ body {
   color: #667085;
 }
 
+.background-history-preview {
+  width: 72px;
+  height: 48px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid #e5e8f0;
+}
+
 @media (max-width: 760px) {
   .options-shell {
     display: block;

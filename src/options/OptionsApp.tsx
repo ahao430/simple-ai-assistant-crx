@@ -8,6 +8,7 @@ import Layout from 'antd/es/layout';
 import List from 'antd/es/list';
 import Menu from 'antd/es/menu';
 import Modal from 'antd/es/modal';
+import Popconfirm from 'antd/es/popconfirm';
 import Select from 'antd/es/select';
 import Slider from 'antd/es/slider';
 import Space from 'antd/es/space';
@@ -21,7 +22,7 @@ import { AGENT_STORAGE_KEY, createAgentConfig, createDefaultAgentConfigs } from 
 import type { ModelCapability, ModelConfig, ProviderConfig, ProviderModelInfo, WebDavConfig } from '../shared/modelConfig';
 import { MODEL_CAPABILITY_LABELS, MODEL_PROVIDER_LABELS } from '../shared/modelConfig';
 import { createModelConfigFromProvider, createProviderConfig } from '../shared/modelConfigUtils';
-import { PANEL_BACKGROUND_STORAGE_KEY, createDefaultPanelBackgroundConfig, upsertPanelBackgroundItem, type PanelBackgroundConfig, type PanelBackgroundFit, type PanelTheme } from '../shared/panelBackground';
+import { PANEL_BACKGROUND_STORAGE_KEY, createDefaultPanelBackgroundConfig, normalizePanelBackgroundConfig, upsertPanelBackgroundItem, type PanelBackgroundConfig, type PanelBackgroundFit, type PanelTheme } from '../shared/panelBackground';
 import { sendRuntimeMessage } from '../shared/runtime';
 import { clearAllHistory, getHistoryCacheStats } from '../sidepanel/historyStore';
 
@@ -65,6 +66,12 @@ export function OptionsApp() {
 
   useEffect(() => {
     loadAll();
+
+    const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
+      if (areaName === 'local' && changes[PANEL_BACKGROUND_STORAGE_KEY]) loadPanelBackground();
+    };
+    chrome.storage.onChanged.addListener(listener);
+    return () => chrome.storage.onChanged.removeListener(listener);
   }, []);
 
   const extensionVersion = chrome.runtime.getManifest().version;
@@ -87,8 +94,13 @@ export function OptionsApp() {
     setModels(modelResponse.models);
     setWebDavConfig(webDavResponse.webDavConfig);
     setAgents(nextAgents);
-    setPanelBackground({ ...createDefaultPanelBackgroundConfig(), ...(backgroundResult[PANEL_BACKGROUND_STORAGE_KEY] || {}) });
+    setPanelBackground(normalizePanelBackgroundConfig(backgroundResult[PANEL_BACKGROUND_STORAGE_KEY] as Partial<PanelBackgroundConfig> | undefined));
     setHistoryCacheStats(nextHistoryCacheStats);
+  }
+
+  async function loadPanelBackground() {
+    const result = await chrome.storage.local.get(PANEL_BACKGROUND_STORAGE_KEY);
+    setPanelBackground(normalizePanelBackgroundConfig(result[PANEL_BACKGROUND_STORAGE_KEY] as Partial<PanelBackgroundConfig> | undefined));
   }
 
   async function saveProvider() {
@@ -260,36 +272,73 @@ export function OptionsApp() {
     await loadAll();
   }
 
-  async function savePanelBackground(next: PanelBackgroundConfig) {
+  async function savePanelBackground(update: PanelBackgroundConfig | ((current: PanelBackgroundConfig) => PanelBackgroundConfig)) {
+    const result = await chrome.storage.local.get(PANEL_BACKGROUND_STORAGE_KEY);
+    const current = normalizePanelBackgroundConfig(result[PANEL_BACKGROUND_STORAGE_KEY] as Partial<PanelBackgroundConfig> | undefined);
+    const next = normalizePanelBackgroundConfig(typeof update === 'function' ? update(current) : update);
     setPanelBackground(next);
     await chrome.storage.local.set({ [PANEL_BACKGROUND_STORAGE_KEY]: next });
   }
 
   async function updatePanelTheme(theme: PanelTheme) {
-    await savePanelBackground({ ...panelBackground, theme });
+    await savePanelBackground((current) => ({ ...current, theme }));
   }
 
   async function updatePanelBackgroundFit(fit: PanelBackgroundFit) {
-    await savePanelBackground({ ...panelBackground, fit });
+    await savePanelBackground((current) => ({ ...current, fit }));
   }
 
   async function updatePanelBackgroundOpacity(value: number) {
     const opacity = Math.min(1, Math.max(0, value));
-    await savePanelBackground({ ...panelBackground, opacity });
+    await savePanelBackground((current) => ({ ...current, opacity }));
   }
 
   async function addBackgroundFromUrl() {
     const url = backgroundUrlInput.trim();
     if (!url) return;
-    await savePanelBackground(upsertPanelBackgroundItem(panelBackground, { name: '在线图片', url }));
+    await savePanelBackground((current) => upsertPanelBackgroundItem(current, { name: '在线图片', url }));
     setBackgroundUrlInput('');
     messageApi.success('已设置背景图');
   }
 
   async function addBackgroundFromFile(file: File) {
     const dataUrl = await readFileAsDataUrl(file);
-    await savePanelBackground(upsertPanelBackgroundItem(panelBackground, { name: file.name, url: dataUrl }));
+    await savePanelBackground((current) => upsertPanelBackgroundItem(current, { name: file.name, url: dataUrl }));
     messageApi.success('已设置背景图');
+  }
+
+  async function exportBackground(item: PanelBackgroundConfig['history'][number]) {
+    const link = document.createElement('a');
+    link.download = `${sanitizeFileName(item.name || 'background')}.png`;
+    if (item.url.startsWith('data:')) {
+      link.href = item.url;
+      link.click();
+      return;
+    }
+
+    try {
+      const response = await fetch(item.url);
+      if (!response.ok) throw new Error(`下载失败：${response.status}`);
+      const objectUrl = URL.createObjectURL(await response.blob());
+      link.href = objectUrl;
+      link.click();
+      URL.revokeObjectURL(objectUrl);
+    } catch {
+      chrome.tabs.create({ url: item.url });
+    }
+  }
+
+  async function copyBackground(item: PanelBackgroundConfig['history'][number]) {
+    try {
+      const response = await fetch(item.url);
+      if (!response.ok) throw new Error(`复制失败：${response.status}`);
+      const blob = await response.blob();
+      await navigator.clipboard.write([new ClipboardItem({ [blob.type || 'image/png']: blob })]);
+      messageApi.success('已复制背景图');
+    } catch {
+      await navigator.clipboard.writeText(item.url);
+      messageApi.success('已复制背景图地址');
+    }
   }
 
   async function checkForUpdates() {
@@ -308,19 +357,10 @@ export function OptionsApp() {
     }
   }
 
-  function clearLocalHistoryCache() {
-    Modal.confirm({
-      title: '清除本地历史缓存？',
-      content: '会清除所有会话历史、文案生成历史、图片生成历史和图片缓存，不影响模型配置和 Agents 配置。',
-      okText: '清除',
-      cancelText: '取消',
-      okButtonProps: { danger: true },
-      async onOk() {
-        await clearAllHistory();
-        setHistoryCacheStats(await getHistoryCacheStats());
-        messageApi.success('已清除本地历史缓存');
-      }
-    });
+  async function clearLocalHistoryCache() {
+    await clearAllHistory();
+    setHistoryCacheStats(await getHistoryCacheStats());
+    messageApi.success('已清除本地历史缓存');
   }
 
   function updateModelCapability(capability: ModelCapability, checked: boolean) {
@@ -340,6 +380,10 @@ export function OptionsApp() {
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  function sanitizeFileName(value: string): string {
+    return value.replace(/[\\/:*?"<>|]/g, '_').slice(0, 80) || 'background';
   }
 
   function readFileAsDataUrl(file: File): Promise<string> {
@@ -383,7 +427,9 @@ export function OptionsApp() {
           </Form.Item>
           <Space>
             <Button type="primary" onClick={saveAgent}>保存 Agent</Button>
-            <Button onClick={() => setAgentDraft(createAgentConfig())}>清空</Button>
+            <Popconfirm title="清空当前 Agent 表单？" okText="清空" cancelText="取消" onConfirm={() => setAgentDraft(createAgentConfig())}>
+              <Button>清空</Button>
+            </Popconfirm>
           </Space>
         </Form>
       </Card>
@@ -393,7 +439,9 @@ export function OptionsApp() {
           locale={{ emptyText: '还没有 Agent' }}
           renderItem={(agent) => <List.Item actions={[
             <Button key="edit" onClick={() => setAgentDraft(agent)}>编辑</Button>,
-            <Button key="delete" danger onClick={() => removeAgent(agent.id)}>删除</Button>
+            <Popconfirm key="delete" title="删除这个 Agent？" okText="删除" cancelText="取消" onConfirm={() => removeAgent(agent.id)}>
+              <Button danger>删除</Button>
+            </Popconfirm>
           ]}>
             <List.Item.Meta title={agent.name} description={agent.prompt.slice(0, 120)} />
           </List.Item>}
@@ -446,10 +494,18 @@ export function OptionsApp() {
           dataSource={panelBackground.history}
           locale={{ emptyText: '还没有历史背景' }}
           renderItem={(item) => <List.Item actions={[
-            <Button key="use" size="small" type={item.id === panelBackground.activeId ? 'primary' : 'default'} onClick={() => savePanelBackground({ ...panelBackground, activeId: item.id })}>使用</Button>,
-            <Button key="delete" size="small" danger onClick={() => savePanelBackground({ ...panelBackground, activeId: panelBackground.activeId === item.id ? '' : panelBackground.activeId, history: panelBackground.history.filter((historyItem) => historyItem.id !== item.id) })}>删除</Button>
+            <Button key="use" size="small" type={item.id === panelBackground.activeId ? 'primary' : 'default'} onClick={() => savePanelBackground((current) => ({ ...current, activeId: item.id }))}>使用</Button>,
+            <Button key="export" size="small" onClick={() => exportBackground(item)}>导出</Button>,
+            <Button key="copy" size="small" onClick={() => copyBackground(item)}>复制</Button>,
+            <Popconfirm key="delete" title="删除这张历史背景？" okText="删除" cancelText="取消" onConfirm={() => savePanelBackground((current) => ({ ...current, activeId: current.activeId === item.id ? '' : current.activeId, history: current.history.filter((historyItem) => historyItem.id !== item.id) }))}>
+              <Button size="small" danger>删除</Button>
+            </Popconfirm>
           ]}>
-            <List.Item.Meta title={item.name} description={new Date(item.createdAt).toLocaleString()} />
+            <List.Item.Meta
+              avatar={<img className="background-history-preview" src={item.url} alt={item.name} />}
+              title={<Space>{item.name}{item.id === panelBackground.activeId && <Tag color="blue">当前</Tag>}</Space>}
+              description={new Date(item.createdAt).toLocaleString()}
+            />
           </List.Item>}
         />
       </Card>
@@ -529,7 +585,9 @@ export function OptionsApp() {
             </div>
             <Space>
               <Button type="primary" onClick={saveProvider}>保存供应商</Button>
-              <Button onClick={() => setProviderDraft(createProviderConfig({ name: 'OpenAI' }))}>清空</Button>
+              <Popconfirm title="清空当前供应商表单？" okText="清空" cancelText="取消" onConfirm={() => setProviderDraft(createProviderConfig({ name: 'OpenAI' }))}>
+                <Button>清空</Button>
+              </Popconfirm>
             </Space>
           </Form>
         </Card>
@@ -543,7 +601,9 @@ export function OptionsApp() {
               <Button key="models" onClick={() => fetchProviderModels(provider)}>获取模型列表</Button>,
               <Button key="add" type="primary" onClick={() => startAddModel(provider)}>添加模型</Button>,
               <Button key="edit" onClick={() => setProviderDraft(provider)}>编辑</Button>,
-              <Button key="delete" danger onClick={() => removeProvider(provider.id)}>删除</Button>
+              <Popconfirm key="delete" title="删除这个供应商配置？" okText="删除" cancelText="取消" onConfirm={() => removeProvider(provider.id)}>
+                <Button danger>删除</Button>
+              </Popconfirm>
             ]}>
               <List.Item.Meta title={<Space>{provider.name}{!provider.enabled && <Tag>已禁用</Tag>}</Space>} description={`${MODEL_PROVIDER_LABELS[provider.provider]} · ${provider.baseURL}`} />
             </List.Item>}
@@ -598,7 +658,9 @@ export function OptionsApp() {
                 setProviderModels(providers.find((provider) => provider.id === model.providerConfigId)?.modelList || []);
                 setModelDraft(model);
               }}>编辑</Button>,
-              <Button key="delete" danger onClick={() => removeModel(model.id)}>删除</Button>
+              <Popconfirm key="delete" title="删除这个模型配置？" okText="删除" cancelText="取消" onConfirm={() => removeModel(model.id)}>
+                <Button danger>删除</Button>
+              </Popconfirm>
             ]}>
               <List.Item.Meta
                 title={<Space>{model.name}{!model.enabled && <Tag>已禁用</Tag>}{defaultCapabilities.filter((item) => model.defaultFor?.[item.capability]).map((item) => <Tag color="orange" key={item.capability}>默认{item.label}</Tag>)}</Space>}
@@ -645,7 +707,9 @@ export function OptionsApp() {
           <Space direction="vertical">
             <Text>当前缓存大小：{formatBytes(historyCacheStats.size)}，记录数：{historyCacheStats.count}</Text>
             <Text type="secondary">清除会话历史、文案生成历史、图片生成历史和图片缓存，不影响模型配置、Agents 配置和 WebDAV 配置。</Text>
-            <Button danger onClick={clearLocalHistoryCache}>清除 IndexedDB 缓存</Button>
+            <Popconfirm title="清除 IndexedDB 缓存？" description="会清除会话历史、文案生成历史、图片生成历史和图片缓存。" okText="清除" cancelText="取消" onConfirm={clearLocalHistoryCache}>
+              <Button danger>清除 IndexedDB 缓存</Button>
+            </Popconfirm>
           </Space>
         </Card>
       </Space> : renderAboutPanel()}
