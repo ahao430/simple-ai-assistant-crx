@@ -11,6 +11,7 @@ export interface ProviderConfig {
   baseURL: string;
   apiKey: string;
   enabled: boolean;
+  modelList?: ProviderModelInfo[];
   createdAt: number;
   updatedAt: number;
 }

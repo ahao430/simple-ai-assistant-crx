@@ -28,6 +28,7 @@ export function ImagePanel(props: {
   isGenerating: boolean;
   onGenerate: () => void;
   onCopyImage: (asset?: ImageAsset) => void;
+  onSetBackground: (asset?: ImageAsset) => void;
   onDeleteHistory: (id: string) => void;
 }) {
   const [form] = Form.useForm();
@@ -116,6 +117,7 @@ export function ImagePanel(props: {
       <img className="image-preview" src={props.imageAsset.dataUrl} alt="AI 生成图片" />
       <Space>
         <Button disabled={props.isGenerating} onClick={() => props.onCopyImage()}>复制</Button>
+        <Button disabled={props.isGenerating} onClick={() => props.onSetBackground(props.imageAsset)}>设为背景</Button>
         <Button disabled={props.isGenerating} onClick={() => props.imageAsset && downloadImage(props.imageAsset)}>下载</Button>
       </Space>
     </>}
@@ -128,6 +130,7 @@ export function ImagePanel(props: {
       </div>
       <Space wrap>
         <Button size="small" onClick={() => props.onCopyImage(selectedHistory)}>复制</Button>
+        <Button size="small" onClick={() => props.onSetBackground(selectedHistory)}>设为背景</Button>
         <Button size="small" onClick={() => downloadImage(selectedHistory)}>下载</Button>
         <Button size="small" onClick={() => {
           setSelectedHistory(undefined);

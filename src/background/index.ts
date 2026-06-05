@@ -31,7 +31,9 @@ async function handleMessage(message: RuntimeRequest, sender: chrome.runtime.Mes
     case 'providers:list-models': {
       const provider = (await listProviderConfigs()).find((item) => item.id === message.id);
       if (!provider) throw new Error('供应商配置不存在');
-      return { ok: true, providerModels: await listProviderModels(provider) };
+      const providerModels = await listProviderModels(provider);
+      await saveProviderConfig({ ...provider, modelList: providerModels });
+      return { ok: true, providerModels };
     }
     case 'models:list':
       return { ok: true, models: await listModelConfigs() };

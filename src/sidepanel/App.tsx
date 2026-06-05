@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import Button from 'antd/es/button';
 import Tabs from 'antd/es/tabs';
+import GithubOutlined from '@ant-design/icons/GithubOutlined';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import type { AgentConfig } from '../shared/agentConfig';
 import { AGENT_STORAGE_KEY, createDefaultAgentConfigs } from '../shared/agentConfig';
@@ -10,6 +11,7 @@ import type { ModelConfig } from '../shared/modelConfig';
 import { MODEL_CAPABILITY_LABELS } from '../shared/modelConfig';
 import { findDefaultModel, getModelProviderGroupName } from '../shared/modelConfigUtils';
 import type { PageContext, SiteContext } from '../shared/siteCapability';
+import { PANEL_BACKGROUND_STORAGE_KEY, createDefaultPanelBackgroundConfig, upsertPanelBackgroundItem, type PanelBackgroundConfig } from '../shared/panelBackground';
 import { sendRuntimeMessage } from '../shared/runtime';
 import { ChatPanel } from './ChatPanel';
 import { TextPanel } from './TextPanel';
@@ -32,6 +34,7 @@ import {
 const MODEL_STORAGE_KEY = 'gy-ai:model-configs';
 const PROVIDER_STORAGE_KEY = 'gy-ai:provider-configs';
 const AGENT_GREETING_PROMPT = '你以该角色开始新会话时，首次回复必须先主动向用户打招呼，简短说明你能提供的帮助，然后再回答用户的问题。';
+const GITHUB_REPOSITORY_URL = 'https://github.com/ahao430/simple-ai-assistant-crx';
 const LATEST_RELEASE_API_URL = 'https://api.github.com/repos/ahao430/simple-ai-assistant-crx/releases/latest';
 const RELEASES_PAGE_URL = 'https://github.com/ahao430/simple-ai-assistant-crx/releases';
 
@@ -71,12 +74,20 @@ export function App() {
   const [imageAsset, setImageAsset] = useState<ImageAsset>();
   const [imageHistory, setImageHistory] = useState<ImageGenerationHistory[]>([]);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [panelBackground, setPanelBackground] = useState<PanelBackgroundConfig>(() => createDefaultPanelBackgroundConfig());
   const [latestRelease, setLatestRelease] = useState<LatestRelease>();
 
   const textModels = useMemo(() => models.filter((model) => model.enabled && model.providerEnabled !== false && (model.capabilities.includes('text') || model.capabilities.includes('vision'))), [models]);
+  const extensionVersion = chrome.runtime.getManifest().version;
   const imageModels = useMemo(() => models.filter((model) => model.enabled && model.providerEnabled !== false && (model.capabilities.includes('image-generation') || model.capabilities.includes('image-edit'))), [models]);
   const textModelOptions = useMemo(() => createGroupedModelOptions(textModels), [textModels]);
   const imageModelOptions = useMemo(() => createGroupedModelOptions(imageModels, true), [imageModels]);
+  const activeBackground = panelBackground.history.find((item) => item.id === panelBackground.activeId);
+  const appStyle = {
+    '--panel-bg-image': activeBackground ? `url(${activeBackground.url})` : 'none',
+    '--panel-bg-size': panelBackground.fit,
+    '--panel-bg-opacity': String(panelBackground.opacity)
+  } as CSSProperties;
 
   useEffect(() => {
     initialize();
@@ -86,6 +97,7 @@ export function App() {
       if (areaName !== 'local') return;
       if (changes[MODEL_STORAGE_KEY] || changes[PROVIDER_STORAGE_KEY]) refreshModels();
       if (changes[AGENT_STORAGE_KEY]) loadAgents();
+      if (changes[PANEL_BACKGROUND_STORAGE_KEY]) loadPanelBackground();
     };
 
     chrome.storage.onChanged.addListener(listener);
@@ -99,6 +111,7 @@ export function App() {
       const nextAgents = await loadAgents();
       await loadChatSessions(nextAgents);
       await loadGenerationHistories();
+      await loadPanelBackground();
       await detectSite();
       await readPage();
     } catch (error) {
@@ -123,6 +136,18 @@ export function App() {
     if (!savedValidAgents.length) await chrome.storage.local.set({ [AGENT_STORAGE_KEY]: nextAgents });
     setAgents(nextAgents);
     return nextAgents;
+  }
+
+  async function loadPanelBackground() {
+    const result = await chrome.storage.local.get(PANEL_BACKGROUND_STORAGE_KEY);
+    const saved = result[PANEL_BACKGROUND_STORAGE_KEY] as Partial<PanelBackgroundConfig> | undefined;
+    setPanelBackground({ ...createDefaultPanelBackgroundConfig(), ...saved });
+  }
+
+  async function togglePanelTheme() {
+    const next: PanelBackgroundConfig = { ...panelBackground, theme: panelBackground.theme === 'dark' ? 'light' : 'dark' };
+    setPanelBackground(next);
+    await chrome.storage.local.set({ [PANEL_BACKGROUND_STORAGE_KEY]: next });
   }
 
   function showToast(message: string) {
@@ -589,6 +614,14 @@ export function App() {
     showToast('已复制图片');
   }
 
+  async function setImageAsBackground(asset?: ImageAsset) {
+    if (!asset?.dataUrl) return;
+    const next = upsertPanelBackgroundItem(panelBackground, { name: asset.prompt?.slice(0, 24) || '图片背景', url: asset.dataUrl });
+    setPanelBackground(next);
+    await chrome.storage.local.set({ [PANEL_BACKGROUND_STORAGE_KEY]: next });
+    showToast('已设为背景');
+  }
+
   async function onImageFiles(files: File[]) {
     const images = await Promise.all(files.map(readFileAsDataUrl));
     setReferenceImages(images);
@@ -600,9 +633,14 @@ export function App() {
   }
 
   return (
-    <main className="app">
+    <main className={`app theme-${panelBackground.theme}`} style={appStyle}>
       {toast && <div className="toast">{toast}</div>}
-      <Button className="app-settings" size="small" icon={<SettingOutlined />} onClick={() => chrome.runtime.openOptionsPage()} />
+      <div className="app-actions">
+        <span className="app-version">v{extensionVersion}</span>
+        <Button size="small" onClick={togglePanelTheme}>{panelBackground.theme === 'dark' ? '浅' : '深'}</Button>
+        <Button size="small" icon={<GithubOutlined />} onClick={() => chrome.tabs.create({ url: GITHUB_REPOSITORY_URL })} />
+        <Button size="small" icon={<SettingOutlined />} onClick={() => chrome.runtime.openOptionsPage()} />
+      </div>
       {latestRelease && <div className="update-banner">
         <span>发现新版本 {latestRelease.tag_name}</span>
         <Button size="small" type="primary" onClick={openReleasesPage}>去更新</Button>
@@ -669,6 +707,7 @@ export function App() {
             isGenerating={isGeneratingImage}
             onGenerate={generateImage}
             onCopyImage={copyImage}
+            onSetBackground={setImageAsBackground}
             onDeleteHistory={removeImageHistory}
           />
         }

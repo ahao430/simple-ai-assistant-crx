@@ -9,16 +9,19 @@ import List from 'antd/es/list';
 import Menu from 'antd/es/menu';
 import Modal from 'antd/es/modal';
 import Select from 'antd/es/select';
+import Slider from 'antd/es/slider';
 import Space from 'antd/es/space';
 import Switch from 'antd/es/switch';
 import Tag from 'antd/es/tag';
 import Typography from 'antd/es/typography';
+import Upload from 'antd/es/upload';
 import message from 'antd/es/message';
 import type { AgentConfig } from '../shared/agentConfig';
 import { AGENT_STORAGE_KEY, createAgentConfig, createDefaultAgentConfigs } from '../shared/agentConfig';
 import type { ModelCapability, ModelConfig, ProviderConfig, ProviderModelInfo, WebDavConfig } from '../shared/modelConfig';
 import { MODEL_CAPABILITY_LABELS, MODEL_PROVIDER_LABELS } from '../shared/modelConfig';
 import { createModelConfigFromProvider, createProviderConfig } from '../shared/modelConfigUtils';
+import { PANEL_BACKGROUND_STORAGE_KEY, createDefaultPanelBackgroundConfig, upsertPanelBackgroundItem, type PanelBackgroundConfig, type PanelBackgroundFit, type PanelTheme } from '../shared/panelBackground';
 import { sendRuntimeMessage } from '../shared/runtime';
 import { clearAllHistory, getHistoryCacheStats } from '../sidepanel/historyStore';
 
@@ -39,6 +42,9 @@ const defaultWebDavConfig: WebDavConfig = {
   enabled: false,
   updatedAt: Date.now()
 };
+const GITHUB_REPOSITORY_URL = 'https://github.com/ahao430/simple-ai-assistant-crx';
+const LATEST_RELEASE_URL = 'https://github.com/ahao430/simple-ai-assistant-crx/releases/latest';
+const LATEST_RELEASE_API_URL = 'https://api.github.com/repos/ahao430/simple-ai-assistant-crx/releases/latest';
 
 export function OptionsApp() {
   const [activeMenu, setActiveMenu] = useState('models');
@@ -51,6 +57,8 @@ export function OptionsApp() {
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const [agentDraft, setAgentDraft] = useState<AgentConfig>(() => createAgentConfig());
   const [agentRestoreConflictNames, setAgentRestoreConflictNames] = useState<string[]>([]);
+  const [panelBackground, setPanelBackground] = useState<PanelBackgroundConfig>(() => createDefaultPanelBackgroundConfig());
+  const [backgroundUrlInput, setBackgroundUrlInput] = useState('');
   const [historyCacheStats, setHistoryCacheStats] = useState<{ size: number; count: number }>({ size: 0, count: 0 });
   const [status, setStatus] = useState('');
   const [messageApi, contextHolder] = message.useMessage();
@@ -59,6 +67,7 @@ export function OptionsApp() {
     loadAll();
   }, []);
 
+  const extensionVersion = chrome.runtime.getManifest().version;
   const sortedModels = useMemo(() => [...models].sort((a, b) => b.updatedAt - a.updatedAt), [models]);
   const selectedProvider = providers.find((item) => item.id === modelDraft?.providerConfigId);
   const sortedAgents = useMemo(() => [...agents].sort((a, b) => b.updatedAt - a.updatedAt), [agents]);
@@ -68,6 +77,7 @@ export function OptionsApp() {
     const modelResponse = await sendRuntimeMessage<{ ok: true; models: ModelConfig[] }>({ type: 'models:list' });
     const webDavResponse = await sendRuntimeMessage<{ ok: true; webDavConfig: WebDavConfig }>({ type: 'webdav:get-config' });
     const nextHistoryCacheStats = await getHistoryCacheStats();
+    const backgroundResult = await chrome.storage.local.get(PANEL_BACKGROUND_STORAGE_KEY);
     const agentResult = await chrome.storage.local.get(AGENT_STORAGE_KEY);
     const savedAgents = (agentResult as Record<string, AgentConfig[]>)[AGENT_STORAGE_KEY];
     const savedValidAgents = savedAgents?.filter((item) => item.name && item.prompt) ?? [];
@@ -77,6 +87,7 @@ export function OptionsApp() {
     setModels(modelResponse.models);
     setWebDavConfig(webDavResponse.webDavConfig);
     setAgents(nextAgents);
+    setPanelBackground({ ...createDefaultPanelBackgroundConfig(), ...(backgroundResult[PANEL_BACKGROUND_STORAGE_KEY] || {}) });
     setHistoryCacheStats(nextHistoryCacheStats);
   }
 
@@ -105,7 +116,7 @@ export function OptionsApp() {
   }
 
   function startAddModel(provider: ProviderConfig) {
-    setProviderModels([]);
+    setProviderModels(provider.modelList || []);
     setModelDraft(createModelConfigFromProvider(provider));
   }
 
@@ -113,6 +124,7 @@ export function OptionsApp() {
     try {
       const response = await sendRuntimeMessage<{ ok: true; providerModels: ProviderModelInfo[] }>({ type: 'providers:list-models', id: provider.id });
       setProviderModels(response.providerModels);
+      setProviders((items) => items.map((item) => item.id === provider.id ? { ...item, modelList: response.providerModels } : item));
       messageApi.success(`已获取 ${response.providerModels.length} 个模型`);
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
@@ -248,6 +260,54 @@ export function OptionsApp() {
     await loadAll();
   }
 
+  async function savePanelBackground(next: PanelBackgroundConfig) {
+    setPanelBackground(next);
+    await chrome.storage.local.set({ [PANEL_BACKGROUND_STORAGE_KEY]: next });
+  }
+
+  async function updatePanelTheme(theme: PanelTheme) {
+    await savePanelBackground({ ...panelBackground, theme });
+  }
+
+  async function updatePanelBackgroundFit(fit: PanelBackgroundFit) {
+    await savePanelBackground({ ...panelBackground, fit });
+  }
+
+  async function updatePanelBackgroundOpacity(value: number) {
+    const opacity = Math.min(1, Math.max(0, value));
+    await savePanelBackground({ ...panelBackground, opacity });
+  }
+
+  async function addBackgroundFromUrl() {
+    const url = backgroundUrlInput.trim();
+    if (!url) return;
+    await savePanelBackground(upsertPanelBackgroundItem(panelBackground, { name: '在线图片', url }));
+    setBackgroundUrlInput('');
+    messageApi.success('已设置背景图');
+  }
+
+  async function addBackgroundFromFile(file: File) {
+    const dataUrl = await readFileAsDataUrl(file);
+    await savePanelBackground(upsertPanelBackgroundItem(panelBackground, { name: file.name, url: dataUrl }));
+    messageApi.success('已设置背景图');
+  }
+
+  async function checkForUpdates() {
+    try {
+      const response = await fetch(LATEST_RELEASE_API_URL);
+      if (!response.ok) throw new Error(`检查更新失败：${response.status}`);
+      const release = await response.json() as { tag_name: string; html_url?: string };
+      if (isNewerVersion(release.tag_name, extensionVersion)) {
+        messageApi.info(`发现新版本 ${release.tag_name}`);
+        chrome.tabs.create({ url: release.html_url || LATEST_RELEASE_URL });
+      } else {
+        messageApi.success('当前已是最新版本');
+      }
+    } catch (error) {
+      messageApi.warning(error instanceof Error ? error.message : String(error));
+    }
+  }
+
   function clearLocalHistoryCache() {
     Modal.confirm({
       title: '清除本地历史缓存？',
@@ -280,6 +340,26 @@ export function OptionsApp() {
     if (size < 1024) return `${size} B`;
     if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
     return `${(size / 1024 / 1024).toFixed(1)} MB`;
+  }
+
+  function readFileAsDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result));
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function isNewerVersion(tagName: string, currentVersion: string): boolean {
+    const latest = tagName.replace(/^v/i, '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+    const current = currentVersion.replace(/^v/i, '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+    for (let index = 0; index < Math.max(latest.length, current.length); index += 1) {
+      const latestPart = latest[index] || 0;
+      const currentPart = current[index] || 0;
+      if (latestPart !== currentPart) return latestPart > currentPart;
+    }
+    return false;
   }
 
   function renderAgentsPanel() {
@@ -322,6 +402,76 @@ export function OptionsApp() {
     </Space>;
   }
 
+  function renderAppearancePanel() {
+    const activeBackground = panelBackground.history.find((item) => item.id === panelBackground.activeId);
+    return <Space direction="vertical" size={16} className="full-width">
+      <div>
+        <Title level={2}>外观设置</Title>
+        <Text type="secondary">设置助手面板主题、背景图、填充方式和透明度。</Text>
+      </div>
+      <Card title="主题">
+        <Select
+          value={panelBackground.theme}
+          onChange={updatePanelTheme}
+          options={[{ value: 'light', label: '浅色' }, { value: 'dark', label: '深色' }]}
+          style={{ width: 160 }}
+        />
+      </Card>
+      <Card title="背景图">
+        <Space direction="vertical" className="full-width" size={12}>
+          <Space>
+            <Upload accept="image/*" showUploadList={false} beforeUpload={(file) => { void addBackgroundFromFile(file); return false; }}>
+              <Button>上传图片</Button>
+            </Upload>
+            <Input value={backgroundUrlInput} onChange={(event) => setBackgroundUrlInput(event.target.value)} placeholder="输入在线图片 URL" style={{ width: 360 }} />
+            <Button onClick={addBackgroundFromUrl}>设置 URL 背景</Button>
+          </Space>
+          <Space>
+            <Text>填充方式</Text>
+            <Select
+              value={panelBackground.fit}
+              onChange={updatePanelBackgroundFit}
+              options={[{ value: 'cover', label: '铺满裁切' }, { value: 'contain', label: '完整显示' }, { value: 'auto', label: '原始大小' }]}
+              style={{ width: 140 }}
+            />
+            <Text>透明度</Text>
+            <Slider min={0} max={1} step={0.05} value={panelBackground.opacity} onChange={(value) => updatePanelBackgroundOpacity(Number(value))} style={{ width: 180 }} />
+            <Text>{Math.round(panelBackground.opacity * 100)}%</Text>
+          </Space>
+          {activeBackground && <Text type="secondary">当前背景：{activeBackground.name}</Text>}
+        </Space>
+      </Card>
+      <Card title="历史背景">
+        <List
+          dataSource={panelBackground.history}
+          locale={{ emptyText: '还没有历史背景' }}
+          renderItem={(item) => <List.Item actions={[
+            <Button key="use" size="small" type={item.id === panelBackground.activeId ? 'primary' : 'default'} onClick={() => savePanelBackground({ ...panelBackground, activeId: item.id })}>使用</Button>,
+            <Button key="delete" size="small" danger onClick={() => savePanelBackground({ ...panelBackground, activeId: panelBackground.activeId === item.id ? '' : panelBackground.activeId, history: panelBackground.history.filter((historyItem) => historyItem.id !== item.id) })}>删除</Button>
+          ]}>
+            <List.Item.Meta title={item.name} description={new Date(item.createdAt).toLocaleString()} />
+          </List.Item>}
+        />
+      </Card>
+    </Space>;
+  }
+
+  function renderAboutPanel() {
+    return <Space direction="vertical" size={16} className="full-width">
+      <div>
+        <Title level={2}>关于</Title>
+        <Text type="secondary">简洁AI助手 · 当前版本 v{extensionVersion}</Text>
+      </div>
+      <Card title="项目地址">
+        <Space direction="vertical">
+          <Text>GitHub 仓库：<a href={GITHUB_REPOSITORY_URL} target="_blank" rel="noreferrer">{GITHUB_REPOSITORY_URL}</a></Text>
+          <Text>最新版 Release：<a href={LATEST_RELEASE_URL} target="_blank" rel="noreferrer">{LATEST_RELEASE_URL}</a></Text>
+          <Button type="primary" onClick={checkForUpdates}>检查更新</Button>
+        </Space>
+      </Card>
+    </Space>;
+  }
+
   return <Layout className="options-shell">
     {contextHolder}
     <Modal
@@ -345,7 +495,9 @@ export function OptionsApp() {
         items={[
           { key: 'models', label: '模型配置' },
           { key: 'agents', label: 'Agents 管理' },
-          { key: 'webdav', label: 'WebDAV 备份' }
+          { key: 'appearance', label: '外观设置' },
+          { key: 'webdav', label: 'WebDAV 备份' },
+          { key: 'about', label: '关于' }
         ]}
       />
     </Sider>
@@ -365,7 +517,7 @@ export function OptionsApp() {
               <Form.Item label="Provider" required>
                 <Select value={providerDraft.provider} onChange={(value) => setProviderDraft({ ...providerDraft, provider: value })} options={Object.entries(MODEL_PROVIDER_LABELS).map(([value, label]) => ({ value, label }))} />
               </Form.Item>
-              <Form.Item label="Base URL" required>
+              <Form.Item label="Base URL" required extra={providerDraft.baseURL.includes('open.bigmodel.cn') ? '智谱通用端点：https://open.bigmodel.cn/api/paas/v4；GLM 编码套餐：https://open.bigmodel.cn/api/coding/paas/v4。智谱请选择 OpenAI 兼容 Provider。' : undefined}>
                 <Input value={providerDraft.baseURL} onChange={(event) => setProviderDraft({ ...providerDraft, baseURL: event.target.value })} placeholder="https://api.openai.com/v1" />
               </Form.Item>
               <Form.Item label="令牌" required>
@@ -442,7 +594,10 @@ export function OptionsApp() {
             dataSource={sortedModels}
             locale={{ emptyText: '还没有模型配置' }}
             renderItem={(model) => <List.Item actions={[
-              <Button key="edit" onClick={() => setModelDraft(model)}>编辑</Button>,
+              <Button key="edit" onClick={() => {
+                setProviderModels(providers.find((provider) => provider.id === model.providerConfigId)?.modelList || []);
+                setModelDraft(model);
+              }}>编辑</Button>,
               <Button key="delete" danger onClick={() => removeModel(model.id)}>删除</Button>
             ]}>
               <List.Item.Meta
@@ -456,7 +611,7 @@ export function OptionsApp() {
             </List.Item>}
           />
         </Card>
-      </Space> : activeMenu === 'agents' ? renderAgentsPanel() : <Space direction="vertical" size={16} className="full-width">
+      </Space> : activeMenu === 'agents' ? renderAgentsPanel() : activeMenu === 'appearance' ? renderAppearancePanel() : activeMenu === 'webdav' ? <Space direction="vertical" size={16} className="full-width">
         <div>
           <Title level={2}>WebDAV 备份</Title>
           <Text type="secondary">手动备份和恢复模型和 Agents 配置。备份文件会包含 API Key，请确认 WebDAV 服务可信且账号安全。</Text>
@@ -493,7 +648,7 @@ export function OptionsApp() {
             <Button danger onClick={clearLocalHistoryCache}>清除 IndexedDB 缓存</Button>
           </Space>
         </Card>
-      </Space>}
+      </Space> : renderAboutPanel()}
     </Content>
   </Layout>;
 }
