@@ -1,0 +1,60 @@
+{
+  "manifest_version": 3,
+  "name": "简洁AI助手",
+  "description": "Side panel AI assistant for page-aware chat, Yuque editing, and Haixing configuration workflows.",
+  "version": "0.1.0",
+  "icons": {
+    "16": "icons/icon-16.png",
+    "32": "icons/icon-32.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  },
+  "permissions": ["activeTab", "clipboardRead", "clipboardWrite", "sidePanel", "scripting", "storage", "tabs"],
+  "host_permissions": [
+    "https://gy19pay.yuque.com/*",
+    "https://www.yuque.com/*",
+    "https://fmanage-dev.19ego.cn/*",
+    "https://fmanage-test.19ego.cn/*",
+    "https://fmanage.19ego.cn/*",
+    "https://haixing-admin-v2-dev.19ego.cn/*",
+    "https://haixing-admin-v2-test.19ego.cn/*",
+    "https://haixing-admin-v2.19ego.cn/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background/index.js",
+    "type": "module"
+  },
+  "side_panel": {
+    "default_path": "src/sidepanel/index.html"
+  },
+  "options_page": "src/options/index.html",
+  "action": {
+    "default_title": "简洁AI助手",
+    "default_icon": {
+      "16": "icons/icon-16.png",
+      "32": "icons/icon-32.png",
+      "48": "icons/icon-48.png",
+      "128": "icons/icon-128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://gy19pay.yuque.com/*", "https://www.yuque.com/*"],
+      "js": ["content/yuque.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://fmanage-dev.19ego.cn/*", "https://fmanage-test.19ego.cn/*", "https://fmanage.19ego.cn/*"],
+      "js": ["content/fmanage.js"],
+      "run_at": "document_idle",
+      "all_frames": false
+    },
+    {
+      "matches": ["https://haixing-admin-v2-dev.19ego.cn/*", "https://haixing-admin-v2-test.19ego.cn/*", "https://haixing-admin-v2.19ego.cn/*"],
+      "js": ["content/haixing.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-label="GY AI Assistant icon">
+  <defs>
+    <linearGradient id="bg" x1="20" y1="14" x2="108" y2="114" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#6D8CFF"/>
+      <stop offset="0.55" stop-color="#315EFB"/>
+      <stop offset="1" stop-color="#1727A8"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="31" y1="26" x2="96" y2="99" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#DDE6FF"/>
+    </linearGradient>
+    <filter id="shadow" x="10" y="12" width="108" height="108" filterUnits="userSpaceOnUse" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0F1D5C" flood-opacity="0.26"/>
+    </filter>
+  </defs>
+  <rect width="128" height="128" rx="28" fill="url(#bg)"/>
+  <g filter="url(#shadow)">
+    <path d="M31 34C31 29.5817 34.5817 26 39 26H90C94.4183 26 98 29.5817 98 34V88C98 92.4183 94.4183 96 90 96H55L39.8 108.16C36.5109 110.791 31.625 108.449 31.625 104.237V96H39C34.5817 96 31 92.4183 31 88V34Z" fill="url(#panel)"/>
+  </g>
+  <path d="M49 53C49 46.3726 54.3726 41 61 41H70C76.6274 41 82 46.3726 82 53V66C82 72.6274 76.6274 78 70 78H61C54.3726 78 49 72.6274 49 66V53Z" fill="#315EFB"/>
+  <circle cx="59" cy="58" r="4" fill="#FFFFFF"/>
+  <circle cx="72" cy="58" r="4" fill="#FFFFFF"/>
+  <path d="M59 68C62.8 71.1 68.2 71.1 72 68" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M65.5 35V28" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="65.5" cy="25" r="4" fill="#FFFFFF"/>
+  <path d="M91 36L96 28L101 36L109 41L101 46L96 54L91 46L83 41L91 36Z" fill="#FFFFFF" opacity="0.96"/>
+  <path d="M91 82L94 77L97 82L102 85L97 88L94 93L91 88L86 85L91 82Z" fill="#315EFB" opacity="0.92"/>
+</svg>
