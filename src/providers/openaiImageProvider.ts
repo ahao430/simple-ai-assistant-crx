@@ -44,12 +44,9 @@ export const openaiImageProvider: AIProviderAdapter = {
     body.set('model', config.model);
     body.set('prompt', request.prompt);
 
-    if (request.editImage) {
-      body.set('image', dataUrlToBlob(request.editImage), 'image.png');
-    }
-
-    request.referenceImages?.forEach((image, index) => {
-      body.append('image[]', dataUrlToBlob(image), `reference-${index}.png`);
+    const images = request.editImage ? [request.editImage, ...(request.referenceImages || []).slice(1)] : request.referenceImages || [];
+    images.forEach((image, index) => {
+      body.append(images.length > 1 ? 'image[]' : 'image', dataUrlToBlob(image), `image-${index + 1}.png`);
     });
 
     const response = await fetchWithTimeout(endpoint, {

@@ -13,8 +13,6 @@
 - 添加 OpenAI-compatible 文本聊天 Provider。
 - 添加 OpenAI-compatible 图片生成和图片编辑 Provider，支持 `gpt-image-2` 等图片模型配置。
 - 添加语雀 content script，支持编辑状态识别、编辑器读取、内容替换和图片插入尝试。
-- 添加大业管 content script，支持识别海星 iframe。
-- 添加海星 content script，支持读取和写回页面中可识别的 JSON 配置内容。
 - 添加通用 content script，并改为按需动态注入以读取普通网页内容。
 - 添加站点能力模型，为后续扩展更多网站预留适配架构。
 - 添加 WebDAV 手动备份和恢复模型配置能力。

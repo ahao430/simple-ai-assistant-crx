@@ -13,14 +13,12 @@ export default defineConfig({
         options: resolve(__dirname, 'src/options/index.html'),
         background: resolve(__dirname, 'src/background/index.ts'),
         common: resolve(__dirname, 'src/content/common.ts'),
-        yuque: resolve(__dirname, 'src/content/yuque.ts'),
-        fmanage: resolve(__dirname, 'src/content/fmanage.ts'),
-        haixing: resolve(__dirname, 'src/content/haixing.ts')
+        yuque: resolve(__dirname, 'src/content/yuque.ts')
       },
       output: {
         entryFileNames: (chunk) => {
           if (chunk.name === 'background') return 'background/index.js';
-          if (['common', 'yuque', 'fmanage', 'haixing'].includes(chunk.name)) return 'content/[name].js';
+          if (['common', 'yuque'].includes(chunk.name)) return 'content/[name].js';
           return 'assets/[name]-[hash].js';
         },
         chunkFileNames: 'assets/[name]-[hash].js',

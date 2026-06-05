@@ -22,6 +22,20 @@ body {
   z-index: 10;
 }
 
+.update-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 8px 52px 0 12px;
+  padding: 8px 10px;
+  border: 1px solid #bae0ff;
+  border-radius: 10px;
+  background: #e6f4ff;
+  color: #0958d9;
+  font-size: 13px;
+}
+
 .toast {
   position: fixed;
   top: 50%;

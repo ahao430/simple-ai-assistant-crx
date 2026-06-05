@@ -4,7 +4,7 @@ import Tabs from 'antd/es/tabs';
 import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import type { AgentConfig } from '../shared/agentConfig';
 import { AGENT_STORAGE_KEY, createDefaultAgentConfigs } from '../shared/agentConfig';
-import type { ImageAsset, ImageMode } from '../shared/assets';
+import type { ImageAsset } from '../shared/assets';
 import type { ChatMessage } from '../shared/messages';
 import type { ModelConfig } from '../shared/modelConfig';
 import { MODEL_CAPABILITY_LABELS } from '../shared/modelConfig';
@@ -32,11 +32,18 @@ import {
 const MODEL_STORAGE_KEY = 'gy-ai:model-configs';
 const PROVIDER_STORAGE_KEY = 'gy-ai:provider-configs';
 const AGENT_GREETING_PROMPT = '你以该角色开始新会话时，首次回复必须先主动向用户打招呼，简短说明你能提供的帮助，然后再回答用户的问题。';
+const LATEST_RELEASE_API_URL = 'https://api.github.com/repos/ahao430/simple-ai-assistant-crx/releases/latest';
+const RELEASES_PAGE_URL = 'https://github.com/ahao430/simple-ai-assistant-crx/releases';
 
 interface ChatSessionAgentSnapshot {
   agentConfigId?: string;
   agentName: string;
   agentPrompt: string;
+}
+
+interface LatestRelease {
+  tag_name: string;
+  html_url?: string;
 }
 
 export function App() {
@@ -60,11 +67,11 @@ export function App() {
   const [status, setStatus] = useState('');
   const [toast, setToast] = useState('');
   const [imagePrompt, setImagePrompt] = useState('');
-  const [imageMode, setImageMode] = useState<ImageMode>('generate');
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [imageAsset, setImageAsset] = useState<ImageAsset>();
   const [imageHistory, setImageHistory] = useState<ImageGenerationHistory[]>([]);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [latestRelease, setLatestRelease] = useState<LatestRelease>();
 
   const textModels = useMemo(() => models.filter((model) => model.enabled && model.providerEnabled !== false && (model.capabilities.includes('text') || model.capabilities.includes('vision'))), [models]);
   const imageModels = useMemo(() => models.filter((model) => model.enabled && model.providerEnabled !== false && (model.capabilities.includes('image-generation') || model.capabilities.includes('image-edit'))), [models]);
@@ -73,6 +80,7 @@ export function App() {
 
   useEffect(() => {
     initialize();
+    checkForUpdates();
 
     const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
       if (areaName !== 'local') return;
@@ -110,16 +118,32 @@ export function App() {
   async function loadAgents() {
     const result = await chrome.storage.local.get(AGENT_STORAGE_KEY);
     const savedAgents = (result as Record<string, AgentConfig[]>)[AGENT_STORAGE_KEY];
-    const nextAgents = savedAgents ?? createDefaultAgentConfigs();
-    if (!savedAgents) await chrome.storage.local.set({ [AGENT_STORAGE_KEY]: nextAgents });
-    const items = nextAgents.filter((item) => item.name && item.prompt);
-    setAgents(items);
-    return items;
+    const savedValidAgents = savedAgents?.filter((item) => item.name && item.prompt) ?? [];
+    const nextAgents = savedValidAgents.length ? savedValidAgents : createDefaultAgentConfigs();
+    if (!savedValidAgents.length) await chrome.storage.local.set({ [AGENT_STORAGE_KEY]: nextAgents });
+    setAgents(nextAgents);
+    return nextAgents;
   }
 
   function showToast(message: string) {
     setToast(message);
     window.setTimeout(() => setToast((current) => current === message ? '' : current), 1800);
+  }
+
+  async function checkForUpdates() {
+    try {
+      const response = await fetch(LATEST_RELEASE_API_URL);
+      if (!response.ok) return;
+      const release = await response.json() as LatestRelease;
+      const currentVersion = chrome.runtime.getManifest().version;
+      if (isNewerVersion(release.tag_name, currentVersion)) setLatestRelease(release);
+    } catch {
+      // Ignore update check failures so opening the panel never gets blocked.
+    }
+  }
+
+  function openReleasesPage() {
+    chrome.tabs.create({ url: latestRelease?.html_url || RELEASES_PAGE_URL });
   }
 
   function applyModels(nextModels: ModelConfig[]) {
@@ -524,20 +548,20 @@ export function App() {
       setIsGeneratingImage(true);
       setImageAsset(undefined);
       setStatus('正在生成图片...');
+      const mode = referenceImages.length ? 'reference' : 'generate';
       const response = await sendRuntimeMessage<{ ok: true; asset: ImageAsset }>({
         type: 'image:generate',
         request: {
           modelConfigId: imageModelId,
-          mode: imageMode,
+          mode,
           prompt: imagePrompt,
-          referenceImages: referenceImages.length ? referenceImages : undefined,
-          editImage: imageMode === 'edit' ? referenceImages[0] : undefined
+          referenceImages: referenceImages.length ? referenceImages : undefined
         }
       });
       setImageAsset(response.asset);
       await saveImageGenerationFromAsset({
         id: crypto.randomUUID(),
-        mode: imageMode,
+        mode,
         prompt: imagePrompt,
         modelConfigId: imageModelId,
         createdAt: Date.now()
@@ -579,6 +603,10 @@ export function App() {
     <main className="app">
       {toast && <div className="toast">{toast}</div>}
       <Button className="app-settings" size="small" icon={<SettingOutlined />} onClick={() => chrome.runtime.openOptionsPage()} />
+      {latestRelease && <div className="update-banner">
+        <span>发现新版本 {latestRelease.tag_name}</span>
+        <Button size="small" type="primary" onClick={openReleasesPage}>去更新</Button>
+      </div>}
       <Tabs className="work-tabs" defaultActiveKey="chat" items={[
         {
           key: 'chat',
@@ -632,8 +660,6 @@ export function App() {
             imageModelOptions={imageModelOptions}
             imageModelId={imageModelId}
             setImageModelId={setImageModelId}
-            imageMode={imageMode}
-            setImageMode={setImageMode}
             imagePrompt={imagePrompt}
             setImagePrompt={setImagePrompt}
             referenceImages={referenceImages}
@@ -656,7 +682,18 @@ function createArticleAnalysisPrompt(pageContext: PageContext): string {
 }
 
 function isYuqueUrl(url: string): boolean {
-  return /^https:\/\/(gy19pay\.yuque\.com|www\.yuque\.com)\//.test(url);
+  return /^https:\/\/www\.yuque\.com\//.test(url);
+}
+
+function isNewerVersion(tagName: string, currentVersion: string): boolean {
+  const latest = tagName.replace(/^v/i, '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+  const current = currentVersion.replace(/^v/i, '').split('.').map((part) => Number.parseInt(part, 10) || 0);
+  for (let index = 0; index < Math.max(latest.length, current.length); index += 1) {
+    const latestPart = latest[index] || 0;
+    const currentPart = current[index] || 0;
+    if (latestPart !== currentPart) return latestPart > currentPart;
+  }
+  return false;
 }
 
 function delay(ms: number): Promise<void> {

@@ -7,7 +7,7 @@ export function createDefaultWebDavConfig(): WebDavConfig {
     url: '',
     username: '',
     password: '',
-    filePath: '/gy-ai-crx/model-configs.json',
+    filePath: 'simple-ai-assistant-crx/configs.json',
     enabled: false,
     updatedAt: Date.now()
   };

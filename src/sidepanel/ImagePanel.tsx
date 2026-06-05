@@ -2,12 +2,11 @@ import { useEffect, useState } from 'react';
 import Button from 'antd/es/button';
 import Form from 'antd/es/form';
 import Input from 'antd/es/input';
-import Radio from 'antd/es/radio';
 import Select from 'antd/es/select';
 import Space from 'antd/es/space';
 import Upload from 'antd/es/upload';
 import type { UploadFile } from 'antd/es/upload/interface';
-import type { ImageAsset, ImageMode } from '../shared/assets';
+import type { ImageAsset } from '../shared/assets';
 import { useTextareaSubmit } from './textareaSubmit';
 import { getImageAssetFromHistory, getImageObjectUrl, type ImageGenerationHistory } from './historyStore';
 
@@ -20,8 +19,6 @@ export function ImagePanel(props: {
   imageModelOptions: SelectGroupOption[];
   imageModelId: string;
   setImageModelId: (id: string) => void;
-  imageMode: ImageMode;
-  setImageMode: (mode: ImageMode) => void;
   imagePrompt: string;
   setImagePrompt: (value: string) => void;
   referenceImages: string[];
@@ -82,10 +79,6 @@ export function ImagePanel(props: {
 
   return <section className="tab-panel image-panel">
     <div className="image-controls">
-      <Radio.Group value={props.imageMode} onChange={(event) => props.setImageMode(event.target.value)} optionType="button" buttonStyle="solid">
-        <Radio.Button value="generate">文生图</Radio.Button>
-        <Radio.Button value="edit">图片编辑</Radio.Button>
-      </Radio.Group>
       <Form form={form} onFinish={handleFinish}>
         <Input.TextArea
           value={props.imagePrompt}

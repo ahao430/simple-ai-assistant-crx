@@ -130,6 +130,21 @@ export async function clearAllHistory(): Promise<void> {
   });
 }
 
+export async function getHistoryCacheStats(): Promise<{ size: number; count: number }> {
+  const [chatSessions, textGenerations, imageGenerations, imageBlobs] = await Promise.all([
+    getAll<ChatSessionHistory>(CHAT_STORE),
+    getAll<TextGenerationHistory>(TEXT_STORE),
+    getAll<ImageGenerationHistory>(IMAGE_STORE),
+    getAll<ImageBlobRecord>(IMAGE_BLOB_STORE)
+  ]);
+  const textSize = byteLength(JSON.stringify([...chatSessions, ...textGenerations, ...imageGenerations]));
+  const imageSize = imageBlobs.reduce((total, item) => total + item.blob.size, 0);
+  return {
+    size: textSize + imageSize,
+    count: chatSessions.length + textGenerations.length + imageGenerations.length + imageBlobs.length
+  };
+}
+
 async function trimImages() {
   const items = sortByCreatedAt(await getAll<ImageGenerationHistory>(IMAGE_STORE));
   const expired = items.slice(IMAGE_LIMIT);
@@ -223,4 +238,8 @@ function blobToDataUrl(blob: Blob): Promise<string> {
     reader.onerror = () => reject(reader.error);
     reader.readAsDataURL(blob);
   });
+}
+
+function byteLength(value: string): number {
+  return new TextEncoder().encode(value).byteLength;
 }

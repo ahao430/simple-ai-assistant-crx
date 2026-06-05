@@ -20,8 +20,9 @@ export async function streamChat(request: ChatRequest, config: ModelConfig, onCh
 }
 
 export async function generateImage(request: ImageGenerationRequest, config: ModelConfig) {
-  const provider = resolveProvider(config, request.mode === 'edit' ? 'editImage' : 'generateImage');
-  const fn = request.mode === 'edit' ? provider.editImage : provider.generateImage;
+  const shouldUseImageInput = request.mode === 'edit' || !!request.referenceImages?.length;
+  const provider = resolveProvider(config, shouldUseImageInput ? 'editImage' : 'generateImage');
+  const fn = shouldUseImageInput ? provider.editImage : provider.generateImage;
   if (!fn) throw new Error('当前模型不支持该图片操作');
   return fn(request, config);
 }

@@ -62,7 +62,7 @@ export async function downloadBackup(config: WebDavConfig): Promise<BackupPayloa
 function buildFileUrl(config: WebDavConfig): string {
   if (!config.url.trim()) throw new Error('请先填写 WebDAV 地址');
   const base = config.url.trim().replace(/\/+$/, '');
-  const path = config.filePath.trim() || '/gy-ai-crx/model-configs.json';
+  const path = config.filePath.trim() || 'simple-ai-assistant-crx/configs.json';
   return `${base}/${path.replace(/^\/+/, '')}`;
 }
 

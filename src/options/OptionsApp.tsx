@@ -20,7 +20,7 @@ import type { ModelCapability, ModelConfig, ProviderConfig, ProviderModelInfo, W
 import { MODEL_CAPABILITY_LABELS, MODEL_PROVIDER_LABELS } from '../shared/modelConfig';
 import { createModelConfigFromProvider, createProviderConfig } from '../shared/modelConfigUtils';
 import { sendRuntimeMessage } from '../shared/runtime';
-import { clearAllHistory } from '../sidepanel/historyStore';
+import { clearAllHistory, getHistoryCacheStats } from '../sidepanel/historyStore';
 
 const { Content, Sider } = Layout;
 const { Text, Title } = Typography;
@@ -35,7 +35,7 @@ const defaultWebDavConfig: WebDavConfig = {
   url: '',
   username: '',
   password: '',
-  filePath: '/gy-ai-crx/model-configs.json',
+  filePath: 'simple-ai-assistant-crx/configs.json',
   enabled: false,
   updatedAt: Date.now()
 };
@@ -50,6 +50,8 @@ export function OptionsApp() {
   const [webDavConfig, setWebDavConfig] = useState<WebDavConfig>(defaultWebDavConfig);
   const [agents, setAgents] = useState<AgentConfig[]>([]);
   const [agentDraft, setAgentDraft] = useState<AgentConfig>(() => createAgentConfig());
+  const [agentRestoreConflictNames, setAgentRestoreConflictNames] = useState<string[]>([]);
+  const [historyCacheStats, setHistoryCacheStats] = useState<{ size: number; count: number }>({ size: 0, count: 0 });
   const [status, setStatus] = useState('');
   const [messageApi, contextHolder] = message.useMessage();
 
@@ -65,14 +67,17 @@ export function OptionsApp() {
     const providerResponse = await sendRuntimeMessage<{ ok: true; providers: ProviderConfig[] }>({ type: 'providers:list' });
     const modelResponse = await sendRuntimeMessage<{ ok: true; models: ModelConfig[] }>({ type: 'models:list' });
     const webDavResponse = await sendRuntimeMessage<{ ok: true; webDavConfig: WebDavConfig }>({ type: 'webdav:get-config' });
+    const nextHistoryCacheStats = await getHistoryCacheStats();
     const agentResult = await chrome.storage.local.get(AGENT_STORAGE_KEY);
     const savedAgents = (agentResult as Record<string, AgentConfig[]>)[AGENT_STORAGE_KEY];
-    const nextAgents = savedAgents ?? createDefaultAgentConfigs();
-    if (!savedAgents) await chrome.storage.local.set({ [AGENT_STORAGE_KEY]: nextAgents });
+    const savedValidAgents = savedAgents?.filter((item) => item.name && item.prompt) ?? [];
+    const nextAgents = savedValidAgents.length ? savedValidAgents : createDefaultAgentConfigs();
+    if (!savedValidAgents.length) await chrome.storage.local.set({ [AGENT_STORAGE_KEY]: nextAgents });
     setProviders(providerResponse.providers);
     setModels(modelResponse.models);
     setWebDavConfig(webDavResponse.webDavConfig);
-    setAgents(nextAgents.filter((item) => item.name && item.prompt));
+    setAgents(nextAgents);
+    setHistoryCacheStats(nextHistoryCacheStats);
   }
 
   async function saveProvider() {
@@ -209,6 +214,40 @@ export function OptionsApp() {
     await loadAll();
   }
 
+  function restoreDefaultAgents() {
+    const defaults = createDefaultAgentConfigs();
+    const sameNameAgents = defaults.filter((preset) => agents.some((agent) => agent.name === preset.name));
+    if (!sameNameAgents.length) {
+      void saveRestoredDefaultAgents(false);
+      return;
+    }
+
+    setAgentRestoreConflictNames(sameNameAgents.map((item) => item.name));
+  }
+
+  async function restoreDefaultAgentsWithConflictChoice(overwriteSameName: boolean) {
+    await saveRestoredDefaultAgents(overwriteSameName);
+    setAgentRestoreConflictNames([]);
+  }
+
+  async function saveRestoredDefaultAgents(overwriteSameName: boolean) {
+    const defaults = createDefaultAgentConfigs();
+    const now = Date.now();
+    const restoredDefaults = defaults.map((preset) => ({
+      ...preset,
+      id: overwriteSameName ? preset.id : crypto.randomUUID(),
+      createdAt: now,
+      updatedAt: now
+    }));
+    const nextAgents = overwriteSameName
+      ? [...restoredDefaults, ...agents.filter((agent) => !defaults.some((preset) => preset.name === agent.name))]
+      : [...restoredDefaults, ...agents];
+    await chrome.storage.local.set({ [AGENT_STORAGE_KEY]: nextAgents });
+    setAgentDraft(createAgentConfig());
+    messageApi.success(overwriteSameName ? '已覆盖并恢复预设角色' : '已恢复预设角色');
+    await loadAll();
+  }
+
   function clearLocalHistoryCache() {
     Modal.confirm({
       title: '清除本地历史缓存？',
@@ -218,6 +257,7 @@ export function OptionsApp() {
       okButtonProps: { danger: true },
       async onOk() {
         await clearAllHistory();
+        setHistoryCacheStats(await getHistoryCacheStats());
         messageApi.success('已清除本地历史缓存');
       }
     });
@@ -234,6 +274,12 @@ export function OptionsApp() {
   function updateModelDefault(capability: ModelCapability, checked: boolean) {
     if (!modelDraft) return;
     setModelDraft({ ...modelDraft, defaultFor: { ...modelDraft.defaultFor, [capability]: checked } });
+  }
+
+  function formatBytes(size: number) {
+    if (size < 1024) return `${size} B`;
+    if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`;
+    return `${(size / 1024 / 1024).toFixed(1)} MB`;
   }
 
   function renderAgentsPanel() {
@@ -261,7 +307,7 @@ export function OptionsApp() {
           </Space>
         </Form>
       </Card>
-      <Card title="Agent 列表">
+      <Card title="Agent 列表" extra={<Button onClick={restoreDefaultAgents}>恢复预设角色</Button>}>
         <List
           dataSource={sortedAgents}
           locale={{ emptyText: '还没有 Agent' }}
@@ -278,6 +324,18 @@ export function OptionsApp() {
 
   return <Layout className="options-shell">
     {contextHolder}
+    <Modal
+      title="发现同名预设角色"
+      open={agentRestoreConflictNames.length > 0}
+      onCancel={() => setAgentRestoreConflictNames([])}
+      footer={[
+        <Button key="cancel" onClick={() => setAgentRestoreConflictNames([])}>取消</Button>,
+        <Button key="coexist" onClick={() => restoreDefaultAgentsWithConflictChoice(false)}>共存</Button>,
+        <Button key="overwrite" type="primary" onClick={() => restoreDefaultAgentsWithConflictChoice(true)}>覆盖</Button>
+      ]}
+    >
+      以下角色已存在：{agentRestoreConflictNames.join('、')}。请选择覆盖现有角色，或保留现有角色并共存。
+    </Modal>
     <Sider width={220} theme="light" className="options-sider">
       <div className="brand">简洁AI助手</div>
       <Menu
@@ -410,7 +468,7 @@ export function OptionsApp() {
                 <Input value={webDavConfig.url} onChange={(event) => setWebDavConfig({ ...webDavConfig, url: event.target.value })} placeholder="https://example.com/dav" />
               </Form.Item>
               <Form.Item label="备份文件路径">
-                <Input value={webDavConfig.filePath} onChange={(event) => setWebDavConfig({ ...webDavConfig, filePath: event.target.value })} placeholder="/gy-ai-crx/model-configs.json" />
+                <Input value={webDavConfig.filePath} onChange={(event) => setWebDavConfig({ ...webDavConfig, filePath: event.target.value })} placeholder="simple-ai-assistant-crx/configs.json" />
               </Form.Item>
               <Form.Item label="用户名">
                 <Input value={webDavConfig.username} onChange={(event) => setWebDavConfig({ ...webDavConfig, username: event.target.value })} />
@@ -430,6 +488,7 @@ export function OptionsApp() {
         </Card>
         <Card title="本地历史缓存">
           <Space direction="vertical">
+            <Text>当前缓存大小：{formatBytes(historyCacheStats.size)}，记录数：{historyCacheStats.count}</Text>
             <Text type="secondary">清除会话历史、文案生成历史、图片生成历史和图片缓存，不影响模型配置、Agents 配置和 WebDAV 配置。</Text>
             <Button danger onClick={clearLocalHistoryCache}>清除 IndexedDB 缓存</Button>
           </Space>
