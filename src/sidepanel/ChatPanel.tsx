@@ -109,7 +109,7 @@ export function ChatPanel(props: {
           <PlusOutlined />
         </Upload>
         <div className="composer-right">
-          <Select className="composer-model" value={props.textModelId || undefined} placeholder="模型" onChange={props.setTextModelId} options={props.textModelOptions} size="small" />
+          <Select className="composer-model" value={props.textModelId || undefined} placeholder="模型" onChange={props.setTextModelId} options={props.textModelOptions} size="small" style={ {"height": "auto"}} />
           <Button className="composer-send" type="primary" htmlType="submit" disabled={!props.textModelId || !props.input.trim()}>发送</Button>
         </div>
       </div>

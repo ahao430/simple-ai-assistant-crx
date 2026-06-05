@@ -109,7 +109,7 @@ export function ImagePanel(props: {
             <PlusOutlined />
           </Upload>
           <div className="composer-right">
-            <Select className="composer-model" value={props.imageModelId || undefined} placeholder="模型" onChange={props.setImageModelId} options={props.imageModelOptions} size="small" />
+            <Select className="composer-model" value={props.imageModelId || undefined} placeholder="模型" onChange={props.setImageModelId} options={props.imageModelOptions} size="small" style={ {"height": "auto"}}/>
             <Button className="composer-send" type="primary" htmlType="submit" loading={props.isGenerating} disabled={!props.imageModelId || !props.imagePrompt.trim()}>生成</Button>
           </div>
         </div>
