@@ -146,3 +146,13 @@ public/
 
 - Anthropic provider 已预留，但尚未实现真实 API 调用。
 - WebDAV 备份不会自动创建不存在的父目录。
+
+## 🙏 致谢
+
+感谢真诚、友善、团结、专业的 [LinuxDo](https://linux.do) 社区，让我学到那么多有关 AI 相关知识。
+
+LinuxDo — 学 AI, 上 L 站!
+
+## License
+
+[MIT](LICENSE)
