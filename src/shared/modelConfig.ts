@@ -1,4 +1,5 @@
 import type { AgentConfig } from './agentConfig';
+import type { AppSettings } from './appSettings';
 
 export type ModelCapability = 'text' | 'vision' | 'image-generation' | 'image-edit' | 'video-generation';
 
@@ -69,4 +70,5 @@ export interface BackupPayload {
   exportedAt: number;
   models: ModelConfig[];
   agents?: AgentConfig[];
+  settings?: AppSettings;
 }

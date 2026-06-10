@@ -38,7 +38,7 @@ export async function uploadBackup(config: WebDavConfig, payload: BackupPayload)
     throw new Error(`WebDAV 备份失败：${response.status} ${await response.text()}`);
   }
 
-  return `已备份 ${payload.models.length} 个模型配置、${(payload.agents || []).length} 个 Agent`;
+  return `已备份 ${payload.models.length} 个模型配置、${(payload.agents || []).length} 个 Agent、设置`;
 }
 
 export async function downloadBackup(config: WebDavConfig): Promise<BackupPayload> {

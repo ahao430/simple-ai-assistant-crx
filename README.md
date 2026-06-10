@@ -37,7 +37,8 @@
 - 支持 OpenAI-compatible 文本聊天接口。
 - 支持 OpenAI-compatible 图片生成和图片编辑接口，例如 `gpt-image-2`。
 - 支持配置页管理模型配置、供应商模型列表缓存和 Agents 预设。支持本地模型服务。
-- 支持 WebDAV 手动备份和恢复模型配置。
+- 支持 WebDAV 手动备份和恢复模型配置、Agents 预设和应用设置。
+- 支持可配置输入快捷键，可选择 Enter 发送或 Command/Ctrl + Enter 发送。
 - 支持浅色/深色主题、面板背景图、历史背景预览、复制和导出。
 - 支持扩展图标和工具栏图标。
 
@@ -61,7 +62,7 @@
 - 默认模型设置
 - 启用状态
 
-WebDAV 配置也保存在 `chrome.storage.local` 中。WebDAV 备份文件会包含模型配置和 API Key，请确认 WebDAV 服务可信且账号安全。
+WebDAV 配置也保存在 `chrome.storage.local` 中。WebDAV 备份文件会包含模型配置、Agents 预设、应用设置和 API Key，请确认 WebDAV 服务可信且账号安全。
 
 ## WebDAV 备份
 
@@ -69,8 +70,8 @@ WebDAV 配置也保存在 `chrome.storage.local` 中。WebDAV 备份文件会包
 
 - 保存 WebDAV 地址、用户名、密码和备份文件路径。
 - 测试 WebDAV 连接。
-- 手动立即备份当前模型配置。
-- 从备份恢复并覆盖本地模型配置。
+- 手动立即备份当前模型配置、Agents 预设和应用设置。
+- 从备份恢复并覆盖本地模型配置、Agents 预设和应用设置。
 
 默认备份路径：
 
@@ -105,14 +106,14 @@ npm run build
 推送任意 tag 会触发 GitHub Actions 自动构建，并把 `dist/` 打包成 `.zip`、`.tar.gz`、`.tar.bz2` 后发布到 GitHub Release。
 
 ```bash
-git tag v0.2.3
-git push origin v0.2.3
+git tag v0.2.4
+git push origin v0.2.4
 ```
 
 安装 Release 包：
 
 1. 在 GitHub Release 下载压缩包，推荐下载 `.zip`。
-2. 解压压缩包，得到类似 `simple-ai-assistant-crx-v0.2.3/` 的目录。
+2. 解压压缩包，得到类似 `simple-ai-assistant-crx-v0.2.4/` 的目录。
 3. 打开 Chrome 扩展管理页：`chrome://extensions/`。
 4. 开启右上角“开发者模式”。
 5. 点击“加载已解压的扩展程序”，选择解压后的目录；也可以把解压后的目录拖入扩展管理页。

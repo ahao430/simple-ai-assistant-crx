@@ -7,6 +7,7 @@ import SettingOutlined from '@ant-design/icons/SettingOutlined';
 import SunOutlined from '@ant-design/icons/SunOutlined';
 import type { AgentConfig } from '../shared/agentConfig';
 import { AGENT_STORAGE_KEY, createDefaultAgentConfigs } from '../shared/agentConfig';
+import { APP_SETTINGS_STORAGE_KEY, createDefaultAppSettings, normalizeAppSettings, type AppSettings } from '../shared/appSettings';
 import type { ImageAsset } from '../shared/assets';
 import type { ChatMessage } from '../shared/messages';
 import type { ModelConfig } from '../shared/modelConfig';
@@ -77,6 +78,7 @@ export function App() {
   const [imageHistory, setImageHistory] = useState<ImageGenerationHistory[]>([]);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
   const [panelBackground, setPanelBackground] = useState<PanelBackgroundConfig>(() => createDefaultPanelBackgroundConfig());
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => createDefaultAppSettings());
   const [latestRelease, setLatestRelease] = useState<LatestRelease>();
 
   const textModels = useMemo(() => models.filter((model) => model.enabled && model.providerEnabled !== false && (model.capabilities.includes('text') || model.capabilities.includes('vision'))), [models]);
@@ -99,6 +101,7 @@ export function App() {
       if (changes[MODEL_STORAGE_KEY] || changes[PROVIDER_STORAGE_KEY]) refreshModels();
       if (changes[AGENT_STORAGE_KEY]) loadAgents();
       if (changes[PANEL_BACKGROUND_STORAGE_KEY]) loadPanelBackground();
+      if (changes[APP_SETTINGS_STORAGE_KEY]) setAppSettings(normalizeAppSettings(changes[APP_SETTINGS_STORAGE_KEY].newValue as Partial<AppSettings> | undefined));
     };
 
     chrome.storage.onChanged.addListener(listener);
@@ -113,6 +116,7 @@ export function App() {
       await loadChatSessions(nextAgents);
       await loadGenerationHistories();
       await loadPanelBackground();
+      await loadAppSettings();
       await detectSite();
       await readPage();
     } catch (error) {
@@ -142,6 +146,11 @@ export function App() {
   async function loadPanelBackground() {
     const result = await chrome.storage.local.get(PANEL_BACKGROUND_STORAGE_KEY);
     setPanelBackground(normalizePanelBackgroundConfig(result[PANEL_BACKGROUND_STORAGE_KEY] as Partial<PanelBackgroundConfig> | undefined));
+  }
+
+  async function loadAppSettings() {
+    const response = await sendRuntimeMessage<{ ok: true; settings: AppSettings }>({ type: 'settings:get' });
+    setAppSettings(normalizeAppSettings(response.settings));
   }
 
   async function savePanelBackground(update: (current: PanelBackgroundConfig) => PanelBackgroundConfig) {
@@ -668,6 +677,7 @@ export function App() {
             setTextModelId={setTextModelId}
             isStreaming={isChatStreaming}
             status={status}
+            submitShortcut={appSettings.submitShortcut}
             onSend={sendChat}
             onReadArticle={readArticleAndAnalyze}
             onCopyText={copyText}
@@ -689,6 +699,7 @@ export function App() {
             textModelOptions={textModelOptions}
             textModelId={textModelId}
             setTextModelId={setTextModelId}
+            submitShortcut={appSettings.submitShortcut}
             onSend={generateText}
             onCopyText={copyText}
             onRegenerate={regenerateText}
@@ -709,6 +720,7 @@ export function App() {
             imageAsset={imageAsset}
             imageHistory={imageHistory}
             isGenerating={isGeneratingImage}
+            submitShortcut={appSettings.submitShortcut}
             onGenerate={generateImage}
             onCopyImage={copyImage}
             onCopyText={copyText}

@@ -9,6 +9,7 @@ import Space from 'antd/es/space';
 import Upload from 'antd/es/upload';
 import type { UploadFile } from 'antd/es/upload/interface';
 import type { ImageAsset } from '../shared/assets';
+import { getSubmitShortcutHint, type SubmitShortcut } from '../shared/appSettings';
 import { useTextareaSubmit } from './textareaSubmit';
 import { getImageAssetFromHistory, getImageObjectUrl, type ImageGenerationHistory } from './historyStore';
 
@@ -28,6 +29,7 @@ export function ImagePanel(props: {
   imageAsset?: ImageAsset;
   imageHistory: ImageGenerationHistory[];
   isGenerating: boolean;
+  submitShortcut: SubmitShortcut;
   onGenerate: () => void;
   onCopyImage: (asset?: ImageAsset) => void;
   onCopyText: (text?: string) => void;
@@ -38,7 +40,7 @@ export function ImagePanel(props: {
   const [historyUrls, setHistoryUrls] = useState<Record<string, string>>({});
   const [selectedHistory, setSelectedHistory] = useState<ImageAsset>();
   const [selectedHistoryMeta, setSelectedHistoryMeta] = useState<ImageGenerationHistory>();
-  const { onCompositionStart, onCompositionEnd, onKeyDown } = useTextareaSubmit();
+  const { onCompositionStart, onCompositionEnd, onKeyDown } = useTextareaSubmit(props.submitShortcut);
   const uploadFiles: UploadFile[] = props.referenceImages.map((url, index) => ({
     uid: `${index}`,
     name: `参考图 ${index + 1}`,
@@ -93,6 +95,7 @@ export function ImagePanel(props: {
           placeholder="描述要生成或修改的图片..."
           autoSize={{ minRows: 3, maxRows: 6 }}
         />
+        <div className="shortcut-hint">{getSubmitShortcutHint(props.submitShortcut)}</div>
         <div className="composer-bottom">
           <Upload
             className="composer-upload"

@@ -1,3 +1,4 @@
+import type { AppSettings } from './appSettings';
 import type { ImageAsset, ImageGenerationRequest } from './assets';
 import type { ModelConfig, ProviderConfig, ProviderModelInfo, WebDavConfig } from './modelConfig';
 import type { PageContext, SiteCapabilityDefinition, SiteContext } from './siteCapability';
@@ -48,6 +49,8 @@ export type RuntimeRequest =
   | { type: 'webdav:test' }
   | { type: 'webdav:backup-models' }
   | { type: 'webdav:restore-models' }
+  | { type: 'settings:get' }
+  | { type: 'settings:save'; settings: AppSettings }
   | { type: 'chat:send'; request: ChatRequest }
   | { type: 'chat:stream'; request: ChatRequest; streamId: string }
   | { type: 'image:generate'; request: ImageGenerationRequest }
@@ -65,6 +68,7 @@ export type RuntimeResponse =
   | { ok: true; models: ModelConfig[] }
   | { ok: true; model: ModelConfig }
   | { ok: true; webDavConfig: WebDavConfig }
+  | { ok: true; settings: AppSettings }
   | { ok: true; message: string }
   | { ok: true; response: ChatResponse }
   | { ok: true; asset: ImageAsset }

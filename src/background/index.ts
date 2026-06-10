@@ -5,6 +5,7 @@ import { createErrorResponse } from '../shared/errors';
 import { deleteModelConfig, deleteProviderConfig, getModelConfig, listModelConfigs, listProviderConfigs, replaceModelConfigs, saveModelConfig, saveProviderConfig } from './modelConfigStore';
 import { listProviderModels } from './providerModelClient';
 import { downloadBackup, testWebDavConnection, uploadBackup } from './webdavClient';
+import { getAppSettings, restoreAppSettings, saveAppSettings } from './appSettingsStore';
 import { getWebDavConfig, saveWebDavConfig } from './webdavBackupStore';
 import { generateImage, sendChat, streamChat } from './providerRegistry';
 
@@ -53,15 +54,21 @@ async function handleMessage(message: RuntimeRequest, sender: chrome.runtime.Mes
       const models = await listModelConfigs();
       const agentsResult = await chrome.storage.local.get(AGENT_STORAGE_KEY);
       const agents = ((agentsResult as Record<string, AgentConfig[]>)[AGENT_STORAGE_KEY] || []).filter((item) => item.name && item.prompt);
-      const message = await uploadBackup(config, { version: 1, app: 'gy-ai-crx', exportedAt: Date.now(), models, agents });
+      const settings = await getAppSettings();
+      const message = await uploadBackup(config, { version: 1, app: 'gy-ai-crx', exportedAt: Date.now(), models, agents, settings });
       return { ok: true, message };
     }
     case 'webdav:restore-models': {
       const payload = await downloadBackup(await getWebDavConfig());
       await replaceModelConfigs(payload.models);
       await chrome.storage.local.set({ [AGENT_STORAGE_KEY]: payload.agents || [] });
-      return { ok: true, message: `已恢复 ${payload.models.length} 个模型配置、${(payload.agents || []).length} 个 Agent` };
+      if (payload.settings) await restoreAppSettings(payload.settings);
+      return { ok: true, message: `已恢复 ${payload.models.length} 个模型配置、${(payload.agents || []).length} 个 Agent${payload.settings ? '、设置' : ''}` };
     }
+    case 'settings:get':
+      return { ok: true, settings: await getAppSettings() };
+    case 'settings:save':
+      return { ok: true, settings: await saveAppSettings(message.settings) };
     case 'chat:send': {
       const config = await requireModel(message.request.modelConfigId);
       return { ok: true, response: await sendChat(message.request, config) };

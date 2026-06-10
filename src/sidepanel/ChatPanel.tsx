@@ -13,6 +13,8 @@ import type { AgentConfig } from '../shared/agentConfig';
 import type { ChatMessage } from '../shared/messages';
 import { MessageList } from './MessageList';
 import { useTextareaSubmit } from './textareaSubmit';
+import type { SubmitShortcut } from '../shared/appSettings';
+import { getSubmitShortcutHint } from '../shared/appSettings';
 import type { SelectGroupOption } from './ImagePanel';
 import type { ChatSessionHistory } from './historyStore';
 
@@ -30,6 +32,7 @@ export function ChatPanel(props: {
   textModelId: string;
   setTextModelId: (id: string) => void;
   isStreaming: boolean;
+  submitShortcut: SubmitShortcut;
   status: string;
   onSend: () => void;
   onReadArticle: () => void;
@@ -42,7 +45,7 @@ export function ChatPanel(props: {
   const [form] = Form.useForm();
   const [newSessionOpen, setNewSessionOpen] = useState(false);
   const [selectedAgentId, setSelectedAgentId] = useState('');
-  const { onCompositionStart, onCompositionEnd, onKeyDown } = useTextareaSubmit();
+  const { onCompositionStart, onCompositionEnd, onKeyDown } = useTextareaSubmit(props.submitShortcut);
   const uploadFiles: UploadFile[] = props.chatImages.map((url, index) => ({
     uid: `${index}`,
     name: `图片 ${index + 1}`,
@@ -93,6 +96,7 @@ export function ChatPanel(props: {
         placeholder="输入消息，支持 Markdown / LaTeX..."
         autoSize={{ minRows: 3, maxRows: 6 }}
       />
+      <div className="shortcut-hint">{getSubmitShortcutHint(props.submitShortcut)}</div>
       <div className="composer-bottom">
         <Upload
           className="composer-upload"

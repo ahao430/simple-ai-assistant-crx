@@ -97,6 +97,7 @@ body {
 .app.theme-dark .ant-select-arrow,
 .app.theme-dark .ant-upload,
 .app.theme-dark .meta,
+.app.theme-dark .shortcut-hint,
 .app.theme-dark .thinking,
 .app.theme-dark .image-history-prompt,
 .app.theme-dark .ant-list-header,
@@ -459,6 +460,12 @@ body {
   gap: 12px;
 }
 
+.shortcut-hint {
+  color: #667085;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
 .composer-left {
   flex: 1;
 }
@@ -706,6 +713,7 @@ body {
 .app.theme-dark .ant-select-arrow,
 .app.theme-dark .ant-upload,
 .app.theme-dark .meta,
+.app.theme-dark .shortcut-hint,
 .app.theme-dark .thinking,
 .app.theme-dark .image-history-prompt,
 .app.theme-dark .ant-list-header,

@@ -1,8 +1,9 @@
 import { useCallback, useRef } from 'react';
 import type React from 'react';
 import type { FormInstance } from 'antd/es/form';
+import type { SubmitShortcut } from '../shared/appSettings';
 
-export function useTextareaSubmit() {
+export function useTextareaSubmit(submitShortcut: SubmitShortcut) {
   const composingRef = useRef(false);
 
   const onCompositionStart = useCallback(() => { composingRef.current = true; }, []);
@@ -13,17 +14,24 @@ export function useTextareaSubmit() {
       return;
     }
 
-    // Ctrl/Cmd + Enter: allow default newline
-    if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+    if (event.key !== 'Enter') return;
+
+    const isModEnter = event.ctrlKey || event.metaKey;
+    const shouldSubmit = submitShortcut === 'enter' ? !isModEnter : isModEnter;
+
+    if (shouldSubmit) {
+      event.preventDefault();
+      form.submit();
       return;
     }
 
-    // Plain Enter: submit
-    if (event.key === 'Enter') {
+    if (isModEnter) {
       event.preventDefault();
-      form.submit();
+      const textarea = event.currentTarget;
+      textarea.setRangeText('\n', textarea.selectionStart, textarea.selectionEnd, 'end');
+      textarea.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertLineBreak', data: '\n' }));
     }
-  }, []);
+  }, [submitShortcut]);
 
   return { onCompositionStart, onCompositionEnd, onKeyDown };
 }

@@ -17,6 +17,7 @@ import Tag from 'antd/es/tag';
 import Typography from 'antd/es/typography';
 import Upload from 'antd/es/upload';
 import message from 'antd/es/message';
+import { createDefaultAppSettings, getSubmitShortcutHint, normalizeAppSettings, type AppSettings, type SubmitShortcut } from '../shared/appSettings';
 import type { AgentConfig } from '../shared/agentConfig';
 import { AGENT_STORAGE_KEY, createAgentConfig, createDefaultAgentConfigs } from '../shared/agentConfig';
 import type { ModelCapability, ModelConfig, ProviderConfig, ProviderModelInfo, WebDavConfig } from '../shared/modelConfig';
@@ -59,6 +60,7 @@ export function OptionsApp() {
   const [agentDraft, setAgentDraft] = useState<AgentConfig>(() => createAgentConfig());
   const [agentRestoreConflictNames, setAgentRestoreConflictNames] = useState<string[]>([]);
   const [panelBackground, setPanelBackground] = useState<PanelBackgroundConfig>(() => createDefaultPanelBackgroundConfig());
+  const [appSettings, setAppSettings] = useState<AppSettings>(() => createDefaultAppSettings());
   const [backgroundUrlInput, setBackgroundUrlInput] = useState('');
   const [historyCacheStats, setHistoryCacheStats] = useState<{ size: number; count: number }>({ size: 0, count: 0 });
   const [status, setStatus] = useState('');
@@ -83,6 +85,7 @@ export function OptionsApp() {
     const providerResponse = await sendRuntimeMessage<{ ok: true; providers: ProviderConfig[] }>({ type: 'providers:list' });
     const modelResponse = await sendRuntimeMessage<{ ok: true; models: ModelConfig[] }>({ type: 'models:list' });
     const webDavResponse = await sendRuntimeMessage<{ ok: true; webDavConfig: WebDavConfig }>({ type: 'webdav:get-config' });
+    const settingsResponse = await sendRuntimeMessage<{ ok: true; settings: AppSettings }>({ type: 'settings:get' });
     const nextHistoryCacheStats = await getHistoryCacheStats();
     const backgroundResult = await chrome.storage.local.get(PANEL_BACKGROUND_STORAGE_KEY);
     const agentResult = await chrome.storage.local.get(AGENT_STORAGE_KEY);
@@ -93,6 +96,7 @@ export function OptionsApp() {
     setProviders(providerResponse.providers);
     setModels(modelResponse.models);
     setWebDavConfig(webDavResponse.webDavConfig);
+    setAppSettings(normalizeAppSettings(settingsResponse.settings));
     setAgents(nextAgents);
     setPanelBackground(normalizePanelBackgroundConfig(backgroundResult[PANEL_BACKGROUND_STORAGE_KEY] as Partial<PanelBackgroundConfig> | undefined));
     setHistoryCacheStats(nextHistoryCacheStats);
@@ -284,6 +288,12 @@ export function OptionsApp() {
     await savePanelBackground((current) => ({ ...current, theme }));
   }
 
+  async function updateSubmitShortcut(submitShortcut: SubmitShortcut) {
+    const response = await sendRuntimeMessage<{ ok: true; settings: AppSettings }>({ type: 'settings:save', settings: { ...appSettings, submitShortcut, updatedAt: Date.now() } });
+    setAppSettings(normalizeAppSettings(response.settings));
+    messageApi.success('已保存快捷键设置');
+  }
+
   async function updatePanelBackgroundFit(fit: PanelBackgroundFit) {
     await savePanelBackground((current) => ({ ...current, fit }));
   }
@@ -463,6 +473,17 @@ export function OptionsApp() {
           onChange={updatePanelTheme}
           options={[{ value: 'light', label: '浅色' }, { value: 'dark', label: '深色' }]}
           style={{ width: 160 }}
+        />
+      </Card>
+      <Card title="输入快捷键">
+        <Select
+          value={appSettings.submitShortcut}
+          onChange={updateSubmitShortcut}
+          options={[
+            { value: 'enter', label: getSubmitShortcutHint('enter') },
+            { value: 'mod-enter', label: getSubmitShortcutHint('mod-enter') }
+          ]}
+          style={{ width: 320 }}
         />
       </Card>
       <Card title="背景图">

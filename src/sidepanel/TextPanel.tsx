@@ -10,6 +10,7 @@ import ReactMarkdown from 'react-markdown';
 import rehypeKatex from 'rehype-katex';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
+import { getSubmitShortcutHint, type SubmitShortcut } from '../shared/appSettings';
 import { useTextareaSubmit } from './textareaSubmit';
 import type { SelectGroupOption } from './ImagePanel';
 import type { TextGenerationHistory } from './historyStore';
@@ -20,6 +21,7 @@ export function TextPanel(props: {
   textResult: string;
   textHistory: TextGenerationHistory[];
   isGenerating: boolean;
+  submitShortcut: SubmitShortcut;
   textModelOptions: SelectGroupOption[];
   textModelId: string;
   setTextModelId: (id: string) => void;
@@ -30,7 +32,7 @@ export function TextPanel(props: {
 }) {
   const [form] = Form.useForm();
   const [selectedHistory, setSelectedHistory] = useState<TextGenerationHistory>();
-  const { onCompositionStart, onCompositionEnd, onKeyDown } = useTextareaSubmit();
+  const { onCompositionStart, onCompositionEnd, onKeyDown } = useTextareaSubmit(props.submitShortcut);
   const hasResult = Boolean(props.textResult);
 
   function handleFinish() {
@@ -50,6 +52,7 @@ export function TextPanel(props: {
           placeholder="输入生成要求，AI 会生成可复制的文案..."
           autoSize={{ minRows: 3, maxRows: 5 }}
         />
+        <div className="shortcut-hint">{getSubmitShortcutHint(props.submitShortcut)}</div>
         <div className="composer-row">
           <div className="composer-left" />
           <Select className="composer-model" value={props.textModelId || undefined} placeholder="模型" onChange={props.setTextModelId} options={props.textModelOptions} size="small" />
