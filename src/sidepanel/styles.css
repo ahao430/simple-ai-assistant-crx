@@ -627,6 +627,24 @@ body {
   font-weight: 500;
 }
 
+.gif-model-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.gif-model-selector .model-label {
+  color: #667085;
+  font-size: 12px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.gif-model-selector .composer-model {
+  width: 100%;
+}
+
 .gif-progress {
   text-align: center;
   padding: 12px;
@@ -897,6 +915,10 @@ body {
   background: #1f2937;
   color: #e5e7eb;
   border-left-color: #3b82f6;
+}
+
+.app.theme-dark .gif-model-selector .model-label {
+  color: #9ca3af;
 }
 
 

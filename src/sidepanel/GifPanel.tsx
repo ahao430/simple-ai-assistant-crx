@@ -389,26 +389,32 @@ export function GifPanel(props: {
               <PlusOutlined />
             </Upload>
             <div className="composer-right">
-              <Select
-                className="composer-model"
-                value={props.textModelId || undefined}
-                placeholder="文本模型"
-                onChange={props.setTextModelId}
-                options={props.textModelOptions}
-                size="small"
-                style={{ height: 'auto', marginBottom: 8 }}
-                disabled={state.isGenerating}
-              />
-              <Select
-                className="composer-model"
-                value={props.imageModelId || undefined}
-                placeholder="图像模型"
-                onChange={props.setImageModelId}
-                options={props.imageModelOptions}
-                size="small"
-                style={{ height: 'auto' }}
-                disabled={state.isGenerating}
-              />
+              <div className="gif-model-selector">
+                <label className="model-label">文本模型</label>
+                <Select
+                  className="composer-model"
+                  value={props.textModelId || undefined}
+                  placeholder="文本模型"
+                  onChange={props.setTextModelId}
+                  options={props.textModelOptions}
+                  size="small"
+                  style={{ height: 'auto' }}
+                  disabled={state.isGenerating}
+                />
+              </div>
+              <div className="gif-model-selector">
+                <label className="model-label">生图模型</label>
+                <Select
+                  className="composer-model"
+                  value={props.imageModelId || undefined}
+                  placeholder="图像模型"
+                  onChange={props.setImageModelId}
+                  options={props.imageModelOptions}
+                  size="small"
+                  style={{ height: 'auto' }}
+                  disabled={state.isGenerating}
+                />
+              </div>
               <Button
                 className="composer-send"
                 type="primary"
