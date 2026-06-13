@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import React from 'react';
 import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import Button from 'antd/es/button';
 import Form from 'antd/es/form';
@@ -64,6 +65,7 @@ export function GifPanel(props: {
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
 
   const [selectedHistory, setSelectedHistory] = useState<SelectedHistory>();
+  const historyDetailRef = React.useRef<HTMLDivElement>(null);
 
   const uploadFiles: UploadFile[] = referenceImages.map((url, index) => ({
     uid: `${index}`,
@@ -299,7 +301,7 @@ export function GifPanel(props: {
       await navigator.clipboard.write([
         new ClipboardItem({ [blob.type]: blob })
       ]);
-      props.onShowToast('已复制第一帧为图片');
+      props.onShowToast('浏览器不支持复制 GIF 格式，已复制第一帧为图片');
     } catch (error) {
       console.error('复制失败:', error);
       props.onShowToast('复制失败: ' + (error instanceof Error ? error.message : String(error)));
@@ -323,7 +325,7 @@ export function GifPanel(props: {
         await navigator.clipboard.write([
           new ClipboardItem({ [blob.type]: blob })
         ]);
-        props.onShowToast('已复制第一帧为图片');
+        props.onShowToast('浏览器不支持复制 GIF 格式，已复制第一帧为图片');
       });
     } catch (error) {
       console.error('复制失败:', error);
@@ -499,6 +501,10 @@ export function GifPanel(props: {
                       item,
                       gifUrl: props.gifHistoryUrls[item.id]
                     });
+                    // 延迟滚动，等待 DOM 更新
+                    setTimeout(() => {
+                      historyDetailRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }, 100);
                   }}>查看</Button>
                   <Popconfirm
                     title="删除这个 GIF 历史？"
@@ -516,7 +522,7 @@ export function GifPanel(props: {
       )}
 
       {selectedHistory && (
-        <div className="gif-history-detail">
+        <div className="gif-history-detail" ref={historyDetailRef}>
           <div className="meta">GIF 历史详情 · {new Date(selectedHistory.item.createdAt).toLocaleString()}</div>
 
           <div className="gif-result-section">
@@ -533,6 +539,7 @@ export function GifPanel(props: {
           <div className="gif-result-section">
             <div className="meta">生成的 GIF ({selectedHistory.item.frameCount} 帧)</div>
             <img className="final-gif" src={selectedHistory.gifUrl} alt="Generated GIF" />
+            <div className="gif-history-note">注意：历史记录中不保存原始雪碧图和切割后的帧图片，仅保存最终的 GIF 文件。</div>
             <Space>
               <Button onClick={copyHistoryGifAsFirstFrame}>复制为图片</Button>
               <Button onClick={downloadHistoryGif}>下载 GIF</Button>
