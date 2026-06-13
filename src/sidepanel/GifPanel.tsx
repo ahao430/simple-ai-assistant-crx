@@ -62,6 +62,7 @@ export function GifPanel(props: {
   });
 
   const [frameCount, setFrameCount] = useState(8);
+  const [frameDelay, setFrameDelay] = useState(200);
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
 
   const [selectedHistory, setSelectedHistory] = useState<SelectedHistory>();
@@ -161,7 +162,7 @@ export function GifPanel(props: {
       }));
 
       // 步骤4：生成 GIF
-      const { gifUrl, gifBlob } = await createGif(frames);
+      const { gifUrl, gifBlob } = await createGif(frames, frameDelay);
 
       setState(prev => ({
         ...prev,
@@ -214,7 +215,7 @@ export function GifPanel(props: {
     return frames;
   }
 
-  async function createGif(frames: string[]): Promise<{ gifUrl: string; gifBlob: Blob }> {
+  async function createGif(frames: string[], delay: number = 200): Promise<{ gifUrl: string; gifBlob: Blob }> {
     return new Promise((resolve, reject) => {
       if (frames.length === 0) {
         reject(new Error('没有帧可以生成 GIF'));
@@ -249,7 +250,7 @@ export function GifPanel(props: {
             loadedCount++;
             if (loadedCount === frames.length) {
               canvases.forEach(canvas => {
-                gif.addFrame(canvas, { delay: 200, copy: true });
+                gif.addFrame(canvas, { delay, copy: true });
               });
               gif.render();
             }
@@ -279,6 +280,37 @@ export function GifPanel(props: {
     link.download = `ai-gif-${Date.now()}.gif`;
     link.href = state.gifUrl;
     link.click();
+  }
+
+  async function adjustGifSpeed() {
+    if (state.frames.length === 0) return;
+
+    try {
+      setState(prev => ({ ...prev, isGenerating: true, progress: '正在调整 GIF 速度...' }));
+
+      // 释放旧的 GIF URL
+      if (state.gifUrl) {
+        URL.revokeObjectURL(state.gifUrl);
+      }
+
+      // 使用当前帧和新的延迟时间重新生成 GIF
+      const { gifUrl, gifBlob } = await createGif(state.frames, frameDelay);
+
+      setState(prev => ({
+        ...prev,
+        gifUrl,
+        progress: 'GIF 速度调整完成！',
+        isGenerating: false
+      }));
+
+      props.onShowToast('GIF 速度已调整');
+    } catch (error) {
+      setState(prev => ({
+        ...prev,
+        progress: `速度调整失败: ${error instanceof Error ? error.message : String(error)}`,
+        isGenerating: false
+      }));
+    }
   }
 
   async function downloadFrames() {
@@ -391,6 +423,18 @@ export function GifPanel(props: {
             />
           </div>
 
+          <div className="gif-frame-control">
+            <div className="frame-label">帧延迟: {frameDelay}ms</div>
+            <Slider
+              min={50}
+              max={500}
+              step={50}
+              value={frameDelay}
+              onChange={setFrameDelay}
+              disabled={state.isGenerating}
+            />
+          </div>
+
           <div className="composer-bottom">
             <Upload
               className="composer-upload"
@@ -490,7 +534,19 @@ export function GifPanel(props: {
               <div className="gif-result-section">
                 <div className="meta">生成的 GIF</div>
                 <img className="final-gif" src={state.gifUrl} alt="Generated GIF" />
+                <div className="gif-speed-control">
+                  <div className="frame-label">调整速度 (帧延迟: {frameDelay}ms)</div>
+                  <Slider
+                    min={50}
+                    max={500}
+                    step={50}
+                    value={frameDelay}
+                    onChange={setFrameDelay}
+                    disabled={state.isGenerating}
+                  />
+                </div>
                 <Space>
+                  <Button onClick={adjustGifSpeed} disabled={state.isGenerating}>应用新速度</Button>
                   <Button onClick={copyGifAsFirstFrame}>复制为图片</Button>
                   <Button onClick={downloadGif}>下载 GIF</Button>
                 </Space>
