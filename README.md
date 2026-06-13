@@ -1,6 +1,6 @@
 # 简洁AI助手（Simple AI Assistant）
 
-简洁AI助手 是一个 Chrome Manifest V3 扩展，以 Side Panel 形式提供页面感知的 AI 聊天、文案生成和图片生成能力。
+简洁AI助手 是一个 Chrome Manifest V3 扩展，以 Side Panel 形式提供页面感知的 AI 聊天、文案生成、图片生成和 GIF 动画生成能力。
 
 ## 界面预览
 
@@ -22,6 +22,12 @@
 
 ![图片生成](docs/图片生成.png)
 
+### GIF 生成
+
+AI 驱动的 GIF 动画生成工作流，自动优化提示词、生成序列帧、切割图片并合成 GIF。支持 3-16 帧可调、历史记录管理、一键复制和下载。
+
+![GIF生成](docs/gif生成.png)
+
 ### 模型设置
 
 在设置页管理供应商、模型能力、默认模型和模型列表缓存，支持 OpenAI-compatible 和本地模型服务。
@@ -36,6 +42,7 @@
 - 支持文本、视觉、图片生成和图片编辑能力标签。
 - 支持 OpenAI-compatible 文本聊天接口。
 - 支持 OpenAI-compatible 图片生成和图片编辑接口，例如 `gpt-image-2`。
+- **AI GIF 生成**：自动优化提示词、生成网格序列帧、智能切割并合成 GIF 动画。
 - 支持配置页管理模型配置、供应商模型列表缓存和 Agents 预设。支持本地模型服务。
 - 支持 WebDAV 手动备份和恢复模型配置、Agents 预设和应用设置。
 - 支持可配置输入快捷键，可选择 Enter 发送或 Command/Ctrl + Enter 发送。

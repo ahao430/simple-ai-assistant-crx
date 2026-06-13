@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "简洁AI助手",
   "description": "Side panel AI assistant for page-aware chat and Yuque editing workflows.",
-  "version": "0.2.4",
+  "version": "0.2.5",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA31ESXFra/59+aek9IF68L0+aWFAzhQTbQGe6V9uG2RxHvrt5/+mQ2fBkk38s14i1BxwguMHs3lesVFaQniXW0HQTThffADFEU0wIaKsD1STcMKRokrWvrrIFOUjWQamiG9Sh37kX4zi9CiJs9qnzfvV0CXkY2c8NEcmKKQTlHYWKZnzYzHDPhRa8dzQzrMnWYCexBtj1C4NeTXJ9J3ws4eWCQb3/lzKmCYT4phP7Qg72FVULgaITMAphxs5REtJ/BIY2wo7WIiNcpCIcl2cQh149bZ33HYvkjJ4CINYDPkaoeNYKcltiSiQnuGwOeWwyIGNK4kpGNwd+Uq9jZt6DKQIDAQAB",
   "icons": {
     "16": "icons/icon-16.png",
