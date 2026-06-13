@@ -19,6 +19,7 @@ import { sendRuntimeMessage } from '../shared/runtime';
 import { ChatPanel } from './ChatPanel';
 import { TextPanel } from './TextPanel';
 import { ImagePanel } from './ImagePanel';
+import { GifPanel } from './GifPanel';
 import {
   deleteChatSession,
   deleteImageGeneration,
@@ -644,6 +645,53 @@ export function App() {
     setChatImages(images);
   }
 
+  async function generateTextForGif(prompt: string): Promise<string> {
+    const streamId = crypto.randomUUID();
+    let result = '';
+
+    const listener = (message: { type?: string; streamId?: string; chunk?: string; message?: ChatMessage }) => {
+      if (message.streamId !== streamId) return;
+
+      if (message.type === 'chat:stream-chunk') {
+        result += message.chunk || '';
+      }
+    };
+
+    chrome.runtime.onMessage.addListener(listener);
+
+    try {
+      const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: prompt, createdAt: Date.now() };
+      const response = await sendRuntimeMessage<{ ok: true; response: { message: ChatMessage } }>({
+        type: 'chat:stream',
+        streamId,
+        request: {
+          conversationId: 'gif-text-generation',
+          modelConfigId: textModelId,
+          messages: [userMessage],
+          pageContext,
+          siteContext
+        }
+      });
+      return response.response.message.content;
+    } catch (error) {
+      throw error;
+    } finally {
+      chrome.runtime.onMessage.removeListener(listener);
+    }
+  }
+
+  async function generateImageForGif(prompt: string): Promise<string> {
+    const response = await sendRuntimeMessage<{ ok: true; asset: ImageAsset }>({
+      type: 'image:generate',
+      request: {
+        modelConfigId: imageModelId,
+        mode: 'generate',
+        prompt
+      }
+    });
+    return response.asset.dataUrl;
+  }
+
   return (
     <main className={`app theme-${panelBackground.theme}`} style={appStyle}>
       {activeBackground?.url && <img className="panel-background-image" src={activeBackground.url} alt="" />}
@@ -726,6 +774,22 @@ export function App() {
             onCopyText={copyText}
             onSetBackground={setImageAsBackground}
             onDeleteHistory={removeImageHistory}
+          />
+        },
+        {
+          key: 'gif',
+          label: 'GIF 生成',
+          children: <GifPanel
+            textModelOptions={textModelOptions}
+            textModelId={textModelId}
+            setTextModelId={setTextModelId}
+            imageModelOptions={imageModelOptions}
+            imageModelId={imageModelId}
+            setImageModelId={setImageModelId}
+            submitShortcut={appSettings.submitShortcut}
+            onCopyText={copyText}
+            onGenerateText={generateTextForGif}
+            onGenerateImage={generateImageForGif}
           />
         }
       ]} />

@@ -597,6 +597,141 @@ body {
   margin: 8px 0;
 }
 
+/* GIF Panel Styles */
+.gif-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gif-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.gif-controls .ant-input {
+  margin-bottom: 4px;
+}
+
+.gif-frame-control {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+
+.frame-label {
+  color: #667085;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.gif-progress {
+  text-align: center;
+  padding: 12px;
+  background: #fff3cd;
+  border-radius: 8px;
+  color: #856404;
+  font-weight: 500;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.gif-result-section {
+  margin: 12px 0;
+  padding: 16px;
+  background: rgba(246, 247, 251, 0.9);
+  border-radius: 8px;
+  border: 1px solid #e5e8f0;
+}
+
+.gif-result-section .meta {
+  margin-bottom: 12px;
+  font-weight: 600;
+  font-size: 13px;
+  color: #475467;
+}
+
+.optimized-prompt {
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid #52c41a;
+  margin-bottom: 8px;
+  color: #495057;
+  line-height: 1.6;
+  font-size: 13px;
+}
+
+.sprite-sheet {
+  width: 100%;
+  max-width: 600px;
+  display: block;
+  margin: 0 auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.frame-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.frame-grid img {
+  width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 2px solid #e9ecef;
+  transition: transform 0.2s, border-color 0.2s;
+  cursor: pointer;
+}
+
+.frame-grid img:hover {
+  transform: scale(1.05);
+  border-color: #315efb;
+}
+
+.final-gif {
+  max-width: 400px;
+  display: block;
+  margin: 12px auto;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+/* Dark theme adjustments for GIF Panel */
+.app.theme-dark .gif-progress {
+  background: #4b5563;
+  color: #fef3c7;
+}
+
+.app.theme-dark .gif-result-section {
+  background: rgba(31, 41, 55, 0.9);
+  border-color: #374151;
+}
+
+.app.theme-dark .optimized-prompt {
+  background: #1f2937;
+  color: #e5e7eb;
+  border-left-color: #10b981;
+}
+
+.app.theme-dark .frame-grid img {
+  border-color: #374151;
+}
+
+.app.theme-dark .frame-grid img:hover {
+  border-color: #315efb;
+}
+
+
 .mermaid-code-block .mermaid-block {
   margin: 0;
   padding: 12px;
