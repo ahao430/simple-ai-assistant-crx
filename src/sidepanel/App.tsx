@@ -790,6 +790,7 @@ export function App() {
             onCopyText={copyText}
             onGenerateText={generateTextForGif}
             onGenerateImage={generateImageForGif}
+            onShowToast={showToast}
           />
         }
       ]} />

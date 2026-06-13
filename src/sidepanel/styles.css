@@ -642,8 +642,26 @@ body {
   50% { opacity: 0.7; }
 }
 
+.gif-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.gif-process {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gif-final {
+  position: sticky;
+  top: 0;
+}
+
 .gif-result-section {
-  margin: 12px 0;
+  margin: 0;
   padding: 16px;
   background: rgba(246, 247, 251, 0.9);
   border-radius: 8px;
@@ -670,7 +688,6 @@ body {
 
 .sprite-sheet {
   width: 100%;
-  max-width: 600px;
   display: block;
   margin: 0 auto;
   border-radius: 8px;
@@ -679,7 +696,7 @@ body {
 
 .frame-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
   gap: 8px;
   margin-top: 8px;
 }
@@ -699,11 +716,17 @@ body {
 }
 
 .final-gif {
-  max-width: 400px;
+  width: 100%;
+  max-width: 100%;
   display: block;
   margin: 12px auto;
   border-radius: 12px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.gif-final .ant-space {
+  width: 100%;
+  justify-content: center;
 }
 
 /* Dark theme adjustments for GIF Panel */

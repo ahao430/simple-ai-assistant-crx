@@ -34,6 +34,7 @@ export function GifPanel(props: {
   onCopyText: (text?: string) => void;
   onGenerateText: (prompt: string) => Promise<string>;
   onGenerateImage: (prompt: string) => Promise<string>;
+  onShowToast: (message: string) => void;
 }) {
   const [form] = Form.useForm();
   const { onCompositionStart, onCompositionEnd, onKeyDown } = useTextareaSubmit(props.submitShortcut);
@@ -246,9 +247,10 @@ export function GifPanel(props: {
       await navigator.clipboard.write([
         new ClipboardItem({ 'image/gif': blob })
       ]);
-      // 这里可以通过回调通知父组件显示提示
+      props.onShowToast('已复制 GIF');
     } catch (error) {
       console.error('复制失败:', error);
+      props.onShowToast('复制失败: ' + (error instanceof Error ? error.message : String(error)));
     }
   }
 
@@ -334,40 +336,48 @@ export function GifPanel(props: {
         <div className="gif-progress">{state.progress}</div>
       )}
 
-      {state.optimizedPrompt && (
-        <div className="gif-result-section">
-          <div className="meta">优化后的提示词</div>
-          <div className="optimized-prompt">{state.optimizedPrompt}</div>
-          <Button size="small" onClick={() => props.onCopyText(state.optimizedPrompt)}>复制</Button>
-        </div>
-      )}
+      {(state.optimizedPrompt || state.gifUrl) && (
+        <div className="gif-layout">
+          <div className="gif-process">
+            {state.optimizedPrompt && (
+              <div className="gif-result-section">
+                <div className="meta">优化后的提示词</div>
+                <div className="optimized-prompt">{state.optimizedPrompt}</div>
+                <Button size="small" onClick={() => props.onCopyText(state.optimizedPrompt)}>复制</Button>
+              </div>
+            )}
 
-      {state.spriteSheetUrl && (
-        <div className="gif-result-section">
-          <div className="meta">生成的序列帧图片</div>
-          <img className="sprite-sheet" src={state.spriteSheetUrl} alt="Sprite Sheet" />
-        </div>
-      )}
+            {state.spriteSheetUrl && (
+              <div className="gif-result-section">
+                <div className="meta">生成的序列帧图片</div>
+                <img className="sprite-sheet" src={state.spriteSheetUrl} alt="Sprite Sheet" />
+              </div>
+            )}
 
-      {state.frames.length > 0 && (
-        <div className="gif-result-section">
-          <div className="meta">切割后的帧 ({state.frames.length} 帧)</div>
-          <div className="frame-grid">
-            {state.frames.map((frame, index) => (
-              <img key={index} src={frame} alt={`Frame ${index + 1}`} />
-            ))}
+            {state.frames.length > 0 && (
+              <div className="gif-result-section">
+                <div className="meta">切割后的帧 ({state.frames.length} 帧)</div>
+                <div className="frame-grid">
+                  {state.frames.map((frame, index) => (
+                    <img key={index} src={frame} alt={`Frame ${index + 1}`} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-      )}
 
-      {state.gifUrl && (
-        <div className="gif-result-section">
-          <div className="meta">生成的 GIF</div>
-          <img className="final-gif" src={state.gifUrl} alt="Generated GIF" />
-          <Space>
-            <Button onClick={copyGif}>复制</Button>
-            <Button onClick={downloadGif}>下载</Button>
-          </Space>
+          {state.gifUrl && (
+            <div className="gif-final">
+              <div className="gif-result-section">
+                <div className="meta">生成的 GIF</div>
+                <img className="final-gif" src={state.gifUrl} alt="Generated GIF" />
+                <Space>
+                  <Button onClick={copyGif}>复制</Button>
+                  <Button onClick={downloadGif}>下载</Button>
+                </Space>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </section>
