@@ -24,15 +24,20 @@ import {
   deleteChatSession,
   deleteImageGeneration,
   deleteTextGeneration,
+  deleteGifGeneration,
   listChatSessions,
   listImageGenerations,
   listTextGenerations,
+  listGifGenerations,
   saveChatSession,
   saveImageGenerationFromAsset,
   saveTextGeneration,
+  saveGifGeneration,
+  getGifObjectUrl,
   type ChatSessionHistory,
   type ImageGenerationHistory,
-  type TextGenerationHistory
+  type TextGenerationHistory,
+  type GifGenerationHistory
 } from './historyStore';
 
 const MODEL_STORAGE_KEY = 'gy-ai:model-configs';
@@ -78,6 +83,8 @@ export function App() {
   const [imageAsset, setImageAsset] = useState<ImageAsset>();
   const [imageHistory, setImageHistory] = useState<ImageGenerationHistory[]>([]);
   const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+  const [gifHistory, setGifHistory] = useState<GifGenerationHistory[]>([]);
+  const [gifHistoryUrls, setGifHistoryUrls] = useState<Record<string, string>>({});
   const [panelBackground, setPanelBackground] = useState<PanelBackgroundConfig>(() => createDefaultPanelBackgroundConfig());
   const [appSettings, setAppSettings] = useState<AppSettings>(() => createDefaultAppSettings());
   const [latestRelease, setLatestRelease] = useState<LatestRelease>();
@@ -304,9 +311,26 @@ export function App() {
   }
 
   async function loadGenerationHistories() {
-    const [texts, images] = await Promise.all([listTextGenerations(), listImageGenerations()]);
+    const [texts, images, gifs] = await Promise.all([listTextGenerations(), listImageGenerations(), listGifGenerations()]);
     setTextHistory(texts);
     setImageHistory(images);
+    setGifHistory(gifs);
+    await loadGifHistoryUrls(gifs);
+  }
+
+  async function loadGifHistoryUrls(gifs: GifGenerationHistory[]) {
+    const urls: string[] = [];
+    const entries = await Promise.all(gifs.map(async (item) => {
+      try {
+        const url = await getGifObjectUrl(item);
+        urls.push(url);
+        return [item.id, url] as const;
+      } catch (error) {
+        console.error(`Failed to load GIF ${item.id}:`, error);
+        return null;
+      }
+    }));
+    setGifHistoryUrls(Object.fromEntries(entries.filter((e): e is [string, string] => e !== null)));
   }
 
   async function removeTextHistory(id: string) {
@@ -317,6 +341,34 @@ export function App() {
   async function removeImageHistory(id: string) {
     await deleteImageGeneration(id);
     setImageHistory(await listImageGenerations());
+  }
+
+  async function removeGifHistory(id: string) {
+    await deleteGifGeneration(id);
+    const gifs = await listGifGenerations();
+    setGifHistory(gifs);
+    await loadGifHistoryUrls(gifs);
+  }
+
+  async function viewGifHistory(id: string) {
+    const item = gifHistory.find(h => h.id === id);
+    if (!item) return;
+    showToast(`GIF: ${item.userPrompt.slice(0, 30)}...`);
+  }
+
+  async function saveGifHistory(item: { userPrompt: string; optimizedPrompt: string; frameCount: number }, gifBlob: Blob) {
+    await saveGifGeneration({
+      id: crypto.randomUUID(),
+      userPrompt: item.userPrompt,
+      optimizedPrompt: item.optimizedPrompt,
+      frameCount: item.frameCount,
+      textModelConfigId: textModelId,
+      imageModelConfigId: imageModelId,
+      createdAt: Date.now()
+    }, gifBlob);
+    const gifs = await listGifGenerations();
+    setGifHistory(gifs);
+    await loadGifHistoryUrls(gifs);
   }
 
   async function detectSite() {
@@ -791,6 +843,11 @@ export function App() {
             onGenerateText={generateTextForGif}
             onGenerateImage={generateImageForGif}
             onShowToast={showToast}
+            onSaveHistory={saveGifHistory}
+            gifHistory={gifHistory}
+            gifHistoryUrls={gifHistoryUrls}
+            onDeleteHistory={removeGifHistory}
+            onViewHistory={viewGifHistory}
           />
         }
       ]} />

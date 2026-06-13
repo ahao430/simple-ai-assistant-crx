@@ -3,6 +3,7 @@ import PlusOutlined from '@ant-design/icons/PlusOutlined';
 import Button from 'antd/es/button';
 import Form from 'antd/es/form';
 import Input from 'antd/es/input';
+import Popconfirm from 'antd/es/popconfirm';
 import Select from 'antd/es/select';
 import Slider from 'antd/es/slider';
 import Space from 'antd/es/space';
@@ -12,6 +13,7 @@ import GIF from 'gif.js';
 import { getSubmitShortcutHint, type SubmitShortcut } from '../shared/appSettings';
 import { useTextareaSubmit } from './textareaSubmit';
 import type { SelectGroupOption } from './ImagePanel';
+import type { GifGenerationHistory } from './historyStore';
 
 interface GifGenerationState {
   userPrompt: string;
@@ -35,6 +37,11 @@ export function GifPanel(props: {
   onGenerateText: (prompt: string) => Promise<string>;
   onGenerateImage: (prompt: string) => Promise<string>;
   onShowToast: (message: string) => void;
+  onSaveHistory: (item: { userPrompt: string; optimizedPrompt: string; frameCount: number }, gifBlob: Blob) => Promise<void>;
+  gifHistory: GifGenerationHistory[];
+  gifHistoryUrls: Record<string, string>;
+  onDeleteHistory: (id: string) => void;
+  onViewHistory: (id: string) => void;
 }) {
   const [form] = Form.useForm();
   const { onCompositionStart, onCompositionEnd, onKeyDown } = useTextareaSubmit(props.submitShortcut);
@@ -127,7 +134,7 @@ export function GifPanel(props: {
       }));
 
       // 步骤4：生成 GIF
-      const gifUrl = await createGif(frames);
+      const { gifUrl, gifBlob } = await createGif(frames);
 
       setState(prev => ({
         ...prev,
@@ -135,6 +142,13 @@ export function GifPanel(props: {
         progress: 'GIF 生成完成！',
         isGenerating: false
       }));
+
+      // 保存到历史记录
+      await props.onSaveHistory({
+        userPrompt: state.userPrompt,
+        optimizedPrompt: optimized,
+        frameCount
+      }, gifBlob);
 
     } catch (error) {
       setState(prev => ({
@@ -173,7 +187,7 @@ export function GifPanel(props: {
     return frames;
   }
 
-  async function createGif(frames: string[]): Promise<string> {
+  async function createGif(frames: string[]): Promise<{ gifUrl: string; gifBlob: Blob }> {
     return new Promise((resolve, reject) => {
       if (frames.length === 0) {
         reject(new Error('没有帧可以生成 GIF'));
@@ -218,7 +232,8 @@ export function GifPanel(props: {
         });
 
         gif.on('finished', (blob: Blob) => {
-          resolve(URL.createObjectURL(blob));
+          const gifUrl = URL.createObjectURL(blob);
+          resolve({ gifUrl, gifBlob: blob });
         });
 
         // GIF.js 的类型定义不完整，使用 any 来避免类型错误
@@ -378,6 +393,38 @@ export function GifPanel(props: {
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {props.gifHistory.length > 0 && (
+        <div className="gif-history">
+          <div className="meta">GIF 生成历史</div>
+          <div className="gif-history-grid">
+            {props.gifHistory.map((item) => (
+              <div className="gif-history-item" key={item.id}>
+                {props.gifHistoryUrls[item.id] && (
+                  <img
+                    src={props.gifHistoryUrls[item.id]}
+                    alt={item.userPrompt}
+                    onClick={() => props.onViewHistory(item.id)}
+                  />
+                )}
+                <div className="gif-history-prompt">{item.userPrompt}</div>
+                <div className="gif-history-meta">{item.frameCount} 帧</div>
+                <Space size="small">
+                  <Button size="small" onClick={() => props.onViewHistory(item.id)}>查看</Button>
+                  <Popconfirm
+                    title="删除这个 GIF 历史？"
+                    okText="删除"
+                    cancelText="取消"
+                    onConfirm={() => props.onDeleteHistory(item.id)}
+                  >
+                    <Button size="small" danger>删除</Button>
+                  </Popconfirm>
+                </Space>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </section>
