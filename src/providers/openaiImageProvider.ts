@@ -19,10 +19,6 @@ export const openaiImageProvider: AIProviderAdapter = {
       response_format: 'b64_json'
     };
 
-    if (request.referenceImages?.length) {
-      body.image = request.referenceImages;
-    }
-
     const response = await fetchWithTimeout(endpoint, {
       method: 'POST',
       headers: {
