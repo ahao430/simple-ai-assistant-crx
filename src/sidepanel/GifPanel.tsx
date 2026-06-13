@@ -41,7 +41,7 @@ export function GifPanel(props: {
   submitShortcut: SubmitShortcut;
   onCopyText: (text?: string) => void;
   onGenerateText: (prompt: string) => Promise<string>;
-  onGenerateImage: (prompt: string) => Promise<string>;
+  onGenerateImage: (prompt: string, referenceImages?: string[]) => Promise<string>;
   onShowToast: (message: string) => void;
   onSaveHistory: (item: { userPrompt: string; optimizedPrompt: string; frameCount: number }, gifBlob: Blob) => Promise<void>;
   gifHistory: GifGenerationHistory[];
@@ -124,7 +124,7 @@ export function GifPanel(props: {
       }));
 
       // 步骤2：生成图片
-      const imageUrl = await props.onGenerateImage(optimized);
+      const imageUrl = await props.onGenerateImage(optimized, referenceImages.length > 0 ? referenceImages : undefined);
 
       setState(prev => ({
         ...prev,

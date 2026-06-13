@@ -708,14 +708,16 @@ export function App() {
     }
   }
 
-  async function generateImageForGif(prompt: string): Promise<string> {
+  async function generateImageForGif(prompt: string, referenceImages?: string[]): Promise<string> {
     try {
+      const mode = referenceImages && referenceImages.length > 0 ? 'reference' : 'generate';
       const response = await sendRuntimeMessage<{ ok: true; asset: ImageAsset }>({
         type: 'image:generate',
         request: {
           modelConfigId: imageModelId,
-          mode: 'generate',
-          prompt
+          mode,
+          prompt,
+          referenceImages
         }
       });
       return response.asset.dataUrl;
