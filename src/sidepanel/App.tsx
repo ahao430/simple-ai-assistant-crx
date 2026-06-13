@@ -698,50 +698,36 @@ export function App() {
   }
 
   async function generateTextForGif(prompt: string): Promise<string> {
-    const streamId = crypto.randomUUID();
-    let result = '';
-
-    const listener = (message: { type?: string; streamId?: string; chunk?: string; message?: ChatMessage }) => {
-      if (message.streamId !== streamId) return;
-
-      if (message.type === 'chat:stream-chunk') {
-        result += message.chunk || '';
-      }
-    };
-
-    chrome.runtime.onMessage.addListener(listener);
-
     try {
       const userMessage: ChatMessage = { id: crypto.randomUUID(), role: 'user', content: prompt, createdAt: Date.now() };
       const response = await sendRuntimeMessage<{ ok: true; response: { message: ChatMessage } }>({
-        type: 'chat:stream',
-        streamId,
+        type: 'chat:send',
         request: {
           conversationId: 'gif-text-generation',
           modelConfigId: textModelId,
-          messages: [userMessage],
-          pageContext,
-          siteContext
+          messages: [userMessage]
         }
       });
       return response.response.message.content;
     } catch (error) {
-      throw error;
-    } finally {
-      chrome.runtime.onMessage.removeListener(listener);
+      throw new Error(`文本生成失败: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 
   async function generateImageForGif(prompt: string): Promise<string> {
-    const response = await sendRuntimeMessage<{ ok: true; asset: ImageAsset }>({
-      type: 'image:generate',
-      request: {
-        modelConfigId: imageModelId,
-        mode: 'generate',
-        prompt
-      }
-    });
-    return response.asset.dataUrl;
+    try {
+      const response = await sendRuntimeMessage<{ ok: true; asset: ImageAsset }>({
+        type: 'image:generate',
+        request: {
+          modelConfigId: imageModelId,
+          mode: 'generate',
+          prompt
+        }
+      });
+      return response.asset.dataUrl;
+    } catch (error) {
+      throw new Error(`图片生成失败: ${error instanceof Error ? error.message : String(error)}`);
+    }
   }
 
   return (
