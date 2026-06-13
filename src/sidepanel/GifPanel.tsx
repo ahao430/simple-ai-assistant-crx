@@ -283,15 +283,17 @@ export function GifPanel(props: {
     }
   }
 
-  async function copyGif() {
-    if (!state.gifUrl) return;
+  async function copyGifAsFirstFrame() {
+    if (!state.gifUrl || state.frames.length === 0) return;
     try {
-      const response = await fetch(state.gifUrl);
+      // 复制第一帧作为静态图片
+      const firstFrame = state.frames[0];
+      const response = await fetch(firstFrame);
       const blob = await response.blob();
       await navigator.clipboard.write([
-        new ClipboardItem({ 'image/gif': blob })
+        new ClipboardItem({ [blob.type]: blob })
       ]);
-      props.onShowToast('已复制 GIF');
+      props.onShowToast('已复制第一帧为图片');
     } catch (error) {
       console.error('复制失败:', error);
       props.onShowToast('复制失败: ' + (error instanceof Error ? error.message : String(error)));
@@ -419,8 +421,8 @@ export function GifPanel(props: {
                 <div className="meta">生成的 GIF</div>
                 <img className="final-gif" src={state.gifUrl} alt="Generated GIF" />
                 <Space>
-                  <Button onClick={copyGif}>复制</Button>
-                  <Button onClick={downloadGif}>下载</Button>
+                  <Button onClick={copyGifAsFirstFrame}>复制为图片</Button>
+                  <Button onClick={downloadGif}>下载 GIF</Button>
                 </Space>
               </div>
             </div>
