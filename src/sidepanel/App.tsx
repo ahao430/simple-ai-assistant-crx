@@ -350,7 +350,7 @@ export function App() {
     await loadGifHistoryUrls(gifs);
   }
 
-  async function saveGifHistory(item: { userPrompt: string; optimizedPrompt: string; frameCount: number }, gifBlob: Blob) {
+  async function saveGifHistory(item: { userPrompt: string; optimizedPrompt: string; frameCount: number }, gifBlob: Blob, frames: string[]) {
     await saveGifGeneration({
       id: crypto.randomUUID(),
       userPrompt: item.userPrompt,
@@ -359,7 +359,7 @@ export function App() {
       textModelConfigId: textModelId,
       imageModelConfigId: imageModelId,
       createdAt: Date.now()
-    }, gifBlob);
+    }, gifBlob, frames);
     const gifs = await listGifGenerations();
     setGifHistory(gifs);
     await loadGifHistoryUrls(gifs);

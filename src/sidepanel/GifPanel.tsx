@@ -29,6 +29,9 @@ interface GifGenerationState {
 interface SelectedHistory {
   item: GifGenerationHistory;
   gifUrl: string;
+  frames?: string[];
+  isAdjustingSpeed?: boolean;
+  adjustedDelay?: number;
 }
 
 export function GifPanel(props: {
@@ -43,7 +46,7 @@ export function GifPanel(props: {
   onGenerateText: (prompt: string) => Promise<string>;
   onGenerateImage: (prompt: string, referenceImages?: string[]) => Promise<string>;
   onShowToast: (message: string) => void;
-  onSaveHistory: (item: { userPrompt: string; optimizedPrompt: string; frameCount: number }, gifBlob: Blob) => Promise<void>;
+  onSaveHistory: (item: { userPrompt: string; optimizedPrompt: string; frameCount: number }, gifBlob: Blob, frames: string[]) => Promise<void>;
   gifHistory: GifGenerationHistory[];
   gifHistoryUrls: Record<string, string>;
   onDeleteHistory: (id: string) => void;
@@ -111,12 +114,12 @@ export function GifPanel(props: {
 
 要求：
 1. 生成 ${rows}x${cols} 网格布局，共 ${frameCount} 帧
-2. 每帧尺寸完全一致，紧密排列无间隙
+2. 每帧尺寸完全一致，紧密排列无间隙，帧之间没有边框、分隔线、空白间隙
 3. 描述连贯的动作或变化序列
 4. 主体保持一致性，使用参考图中的形象
 5. 明确要求 "sprite sheet" 或 "animation frames grid layout" 形式
 6. 每帧图片上不要添加数字、文字标注或序号
-7. 示例格式：A sprite sheet in ${rows} rows and ${cols} columns based on the reference image, showing the character/subject from the reference doing [action], each frame is identical size, no gaps, grid layout, animation sequence, keep the same style and appearance as the reference, no frame numbers or text labels
+7. 示例格式：A sprite sheet in ${rows} rows and ${cols} columns based on the reference image, showing the character/subject from the reference doing [action], each frame is identical size, seamless grid with no gaps or borders between frames, grid layout, animation sequence, keep the same style and appearance as the reference, no frame numbers or text labels, no white space between frames
 
 用户输入：${state.userPrompt}
 
@@ -124,12 +127,12 @@ export function GifPanel(props: {
         : `你是提示词优化专家。将用户输入改写为适合生成动画序列帧的详细英文提示词。
 要求：
 1. 生成 ${rows}x${cols} 网格布局，共 ${frameCount} 帧
-2. 每帧尺寸完全一致，紧密排列无间隙
+2. 每帧尺寸完全一致，紧密排列无间隙，帧之间没有边框、分隔线、空白间隙
 3. 描述连贯的动作或变化序列
 4. 主体保持一致性
 5. 明确要求 "sprite sheet" 或 "animation frames grid layout" 形式
 6. 每帧图片上不要添加数字、文字标注或序号
-7. 示例格式：A sprite sheet of [subject] in ${rows} rows and ${cols} columns, showing [action], each frame is identical size, no gaps, grid layout, animation sequence, no frame numbers or text labels
+7. 示例格式：A sprite sheet of [subject] in ${rows} rows and ${cols} columns, showing [action], each frame is identical size, seamless grid with no gaps or borders between frames, grid layout, animation sequence, no frame numbers or text labels, no white space between frames
 
 用户输入：${state.userPrompt}
 
@@ -176,7 +179,7 @@ export function GifPanel(props: {
         userPrompt: state.userPrompt,
         optimizedPrompt: optimized,
         frameCount
-      }, gifBlob);
+      }, gifBlob, frames);
 
     } catch (error) {
       setState(prev => ({
@@ -394,6 +397,38 @@ export function GifPanel(props: {
 
   function closeHistoryDetail() {
     setSelectedHistory(undefined);
+  }
+
+  async function adjustHistoryGifSpeed() {
+    if (!selectedHistory || !selectedHistory.adjustedDelay) return;
+
+    try {
+      setSelectedHistory(prev => prev ? { ...prev, isAdjustingSpeed: true } : undefined);
+
+      // 从历史记录加载原始帧
+      const { getGifFrames, updateGifBlob } = await import('./historyStore');
+      const frames = await getGifFrames(selectedHistory.item);
+
+      // 使用新的延迟重新生成 GIF
+      const { gifUrl: newGifUrl, gifBlob: newGifBlob } = await createGif(frames, selectedHistory.adjustedDelay);
+
+      // 更新数据库中的 GIF blob
+      await updateGifBlob(selectedHistory.item, newGifBlob);
+
+      // 释放旧的 URL 并更新状态
+      URL.revokeObjectURL(selectedHistory.gifUrl);
+
+      setSelectedHistory(prev => prev ? {
+        ...prev,
+        gifUrl: newGifUrl,
+        isAdjustingSpeed: false
+      } : undefined);
+
+      props.onShowToast('GIF 速度已调整并保存');
+    } catch (error) {
+      props.onShowToast('调整失败: ' + (error instanceof Error ? error.message : String(error)));
+      setSelectedHistory(prev => prev ? { ...prev, isAdjustingSpeed: false } : undefined);
+    }
   }
 
   return (
@@ -620,8 +655,19 @@ export function GifPanel(props: {
           <div className="gif-result-section">
             <div className="meta">生成的 GIF ({selectedHistory.item.frameCount} 帧)</div>
             <img className="final-gif" src={selectedHistory.gifUrl} alt="Generated GIF" />
-            <div className="gif-history-note">注意：历史记录中不保存原始雪碧图和切割后的帧图片，仅保存最终的 GIF 文件。</div>
+            <div className="gif-speed-control">
+              <div className="frame-label">调整速度 (帧延迟: {selectedHistory.adjustedDelay || 200}ms)</div>
+              <Slider
+                min={50}
+                max={500}
+                step={50}
+                value={selectedHistory.adjustedDelay || 200}
+                onChange={(value) => setSelectedHistory(prev => prev ? { ...prev, adjustedDelay: value } : undefined)}
+                disabled={selectedHistory.isAdjustingSpeed}
+              />
+            </div>
             <Space>
+              <Button onClick={adjustHistoryGifSpeed} loading={selectedHistory.isAdjustingSpeed}>应用新速度</Button>
               <Button onClick={copyHistoryGifAsFirstFrame}>复制为图片</Button>
               <Button onClick={downloadHistoryGif}>下载 GIF</Button>
               <Button onClick={closeHistoryDetail}>关闭</Button>

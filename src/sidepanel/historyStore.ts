@@ -2,13 +2,14 @@ import type { ImageAsset, ImageMode } from '../shared/assets';
 import type { ChatMessage } from '../shared/messages';
 
 const DB_NAME = 'gy-ai-history';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const CHAT_STORE = 'chatSessions';
 const TEXT_STORE = 'textGenerations';
 const IMAGE_STORE = 'imageGenerations';
 const IMAGE_BLOB_STORE = 'imageBlobs';
 const GIF_STORE = 'gifGenerations';
 const GIF_BLOB_STORE = 'gifBlobs';
+const GIF_FRAMES_STORE = 'gifFrames';
 const CHAT_LIMIT = 100;
 const TEXT_LIMIT = 200;
 const IMAGE_LIMIT = 50;
@@ -52,6 +53,7 @@ export interface GifGenerationHistory {
   optimizedPrompt: string;
   frameCount: number;
   blobId: string;
+  framesId: string;
   textModelConfigId: string;
   imageModelConfigId: string;
   createdAt: number;
@@ -60,6 +62,12 @@ export interface GifGenerationHistory {
 interface ImageBlobRecord {
   id: string;
   blob: Blob;
+  createdAt: number;
+}
+
+interface GifFramesRecord {
+  id: string;
+  frames: string[];
   createdAt: number;
 }
 
@@ -139,11 +147,13 @@ export async function listGifGenerations(): Promise<GifGenerationHistory[]> {
   return sortByCreatedAt(await getAll<GifGenerationHistory>(GIF_STORE));
 }
 
-export async function saveGifGeneration(item: Omit<GifGenerationHistory, 'blobId'>, gifBlob: Blob): Promise<GifGenerationHistory> {
+export async function saveGifGeneration(item: Omit<GifGenerationHistory, 'blobId' | 'framesId'>, gifBlob: Blob, frames: string[]): Promise<GifGenerationHistory> {
   const blobId = crypto.randomUUID();
-  const history: GifGenerationHistory = { ...item, blobId };
-  await withStores([GIF_STORE, GIF_BLOB_STORE], 'readwrite', (stores) => {
+  const framesId = crypto.randomUUID();
+  const history: GifGenerationHistory = { ...item, blobId, framesId };
+  await withStores([GIF_STORE, GIF_BLOB_STORE, GIF_FRAMES_STORE], 'readwrite', (stores) => {
     stores[GIF_BLOB_STORE].put({ id: blobId, blob: gifBlob, createdAt: item.createdAt } satisfies ImageBlobRecord);
+    stores[GIF_FRAMES_STORE].put({ id: framesId, frames, createdAt: item.createdAt } satisfies GifFramesRecord);
     stores[GIF_STORE].put(history);
   });
   await trimGifs();
@@ -152,9 +162,10 @@ export async function saveGifGeneration(item: Omit<GifGenerationHistory, 'blobId
 
 export async function deleteGifGeneration(id: string): Promise<void> {
   const item = await get<GifGenerationHistory>(GIF_STORE, id);
-  await withStores([GIF_STORE, GIF_BLOB_STORE], 'readwrite', (stores) => {
+  await withStores([GIF_STORE, GIF_BLOB_STORE, GIF_FRAMES_STORE], 'readwrite', (stores) => {
     stores[GIF_STORE].delete(id);
     if (item?.blobId) stores[GIF_BLOB_STORE].delete(item.blobId);
+    if (item?.framesId) stores[GIF_FRAMES_STORE].delete(item.framesId);
   });
 }
 
@@ -164,14 +175,27 @@ export async function getGifObjectUrl(item: GifGenerationHistory): Promise<strin
   return URL.createObjectURL(record.blob);
 }
 
+export async function getGifFrames(item: GifGenerationHistory): Promise<string[]> {
+  const record = await get<GifFramesRecord>(GIF_FRAMES_STORE, item.framesId);
+  if (!record) throw new Error('GIF 帧数据不存在');
+  return record.frames;
+}
+
+export async function updateGifBlob(item: GifGenerationHistory, newGifBlob: Blob): Promise<void> {
+  await withStores([GIF_BLOB_STORE], 'readwrite', (stores) => {
+    stores[GIF_BLOB_STORE].put({ id: item.blobId, blob: newGifBlob, createdAt: item.createdAt } satisfies ImageBlobRecord);
+  });
+}
+
 export async function clearAllHistory(): Promise<void> {
-  await withStores([CHAT_STORE, TEXT_STORE, IMAGE_STORE, IMAGE_BLOB_STORE, GIF_STORE, GIF_BLOB_STORE], 'readwrite', (stores) => {
+  await withStores([CHAT_STORE, TEXT_STORE, IMAGE_STORE, IMAGE_BLOB_STORE, GIF_STORE, GIF_BLOB_STORE, GIF_FRAMES_STORE], 'readwrite', (stores) => {
     stores[CHAT_STORE].clear();
     stores[TEXT_STORE].clear();
     stores[IMAGE_STORE].clear();
     stores[IMAGE_BLOB_STORE].clear();
     stores[GIF_STORE].clear();
     stores[GIF_BLOB_STORE].clear();
+    stores[GIF_FRAMES_STORE].clear();
   });
 }
 
@@ -209,10 +233,11 @@ async function trimGifs() {
   const items = sortByCreatedAt(await getAll<GifGenerationHistory>(GIF_STORE));
   const expired = items.slice(GIF_LIMIT);
   if (!expired.length) return;
-  await withStores([GIF_STORE, GIF_BLOB_STORE], 'readwrite', (stores) => {
+  await withStores([GIF_STORE, GIF_BLOB_STORE, GIF_FRAMES_STORE], 'readwrite', (stores) => {
     for (const item of expired) {
       stores[GIF_STORE].delete(item.id);
       stores[GIF_BLOB_STORE].delete(item.blobId);
+      if (item.framesId) stores[GIF_FRAMES_STORE].delete(item.framesId);
     }
   });
 }
@@ -232,7 +257,7 @@ function openHistoryDb(): Promise<IDBDatabase> {
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
-      for (const storeName of [CHAT_STORE, TEXT_STORE, IMAGE_STORE, IMAGE_BLOB_STORE, GIF_STORE, GIF_BLOB_STORE]) {
+      for (const storeName of [CHAT_STORE, TEXT_STORE, IMAGE_STORE, IMAGE_BLOB_STORE, GIF_STORE, GIF_BLOB_STORE, GIF_FRAMES_STORE]) {
         if (!db.objectStoreNames.contains(storeName)) db.createObjectStore(storeName, { keyPath: 'id' });
       }
     };
