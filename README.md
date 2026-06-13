@@ -28,6 +28,13 @@ AI 驱动的 GIF 动画生成工作流，自动优化提示词、生成序列帧
 
 ![GIF生成](docs/gif生成.png)
 
+#### 生成示例
+
+<p align="center">
+  <img src="docs/gif1.gif" alt="GIF示例1" width="200"/>
+  <img src="docs/gif2.gif" alt="GIF示例2" width="200"/>
+</p>
+
 ### 模型设置
 
 在设置页管理供应商、模型能力、默认模型和模型列表缓存，支持 OpenAI-compatible 和本地模型服务。
