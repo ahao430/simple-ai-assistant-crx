@@ -114,7 +114,8 @@ export function GifPanel(props: {
 3. 描述连贯的动作或变化序列
 4. 主体保持一致性，使用参考图中的形象
 5. 明确要求 "sprite sheet" 或 "animation frames grid layout" 形式
-6. 示例格式：A sprite sheet in ${rows} rows and ${cols} columns based on the reference image, showing the character/subject from the reference doing [action], each frame is identical size, no gaps, grid layout, animation sequence, keep the same style and appearance as the reference
+6. 每帧图片上不要添加数字、文字标注或序号
+7. 示例格式：A sprite sheet in ${rows} rows and ${cols} columns based on the reference image, showing the character/subject from the reference doing [action], each frame is identical size, no gaps, grid layout, animation sequence, keep the same style and appearance as the reference, no frame numbers or text labels
 
 用户输入：${state.userPrompt}
 
@@ -126,7 +127,8 @@ export function GifPanel(props: {
 3. 描述连贯的动作或变化序列
 4. 主体保持一致性
 5. 明确要求 "sprite sheet" 或 "animation frames grid layout" 形式
-6. 示例格式：A sprite sheet of [subject] in ${rows} rows and ${cols} columns, showing [action], each frame is identical size, no gaps, grid layout, animation sequence
+6. 每帧图片上不要添加数字、文字标注或序号
+7. 示例格式：A sprite sheet of [subject] in ${rows} rows and ${cols} columns, showing [action], each frame is identical size, no gaps, grid layout, animation sequence, no frame numbers or text labels
 
 用户输入：${state.userPrompt}
 
