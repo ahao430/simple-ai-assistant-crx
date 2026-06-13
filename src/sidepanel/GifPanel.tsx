@@ -102,7 +102,24 @@ export function GifPanel(props: {
       const rows = Math.ceil(Math.sqrt(frameCount));
       const cols = Math.ceil(frameCount / rows);
 
-      const optimizationPrompt = `你是提示词优化专家。将用户输入改写为适合生成动画序列帧的详细英文提示词。
+      const hasReferenceImages = referenceImages.length > 0;
+      const optimizationPrompt = hasReferenceImages
+        ? `你是提示词优化专家。将用户输入改写为适合生成动画序列帧的详细英文提示词。
+
+注意：用户上传了参考图，请务必在提示词中明确要求使用参考图中的形象、风格和特征。
+
+要求：
+1. 生成 ${rows}x${cols} 网格布局，共 ${frameCount} 帧
+2. 每帧尺寸完全一致，紧密排列无间隙
+3. 描述连贯的动作或变化序列
+4. 主体保持一致性，使用参考图中的形象
+5. 明确要求 "sprite sheet" 或 "animation frames grid layout" 形式
+6. 示例格式：A sprite sheet in ${rows} rows and ${cols} columns based on the reference image, showing the character/subject from the reference doing [action], each frame is identical size, no gaps, grid layout, animation sequence, keep the same style and appearance as the reference
+
+用户输入：${state.userPrompt}
+
+请直接输出优化后的英文提示词，不要其他解释。`
+        : `你是提示词优化专家。将用户输入改写为适合生成动画序列帧的详细英文提示词。
 要求：
 1. 生成 ${rows}x${cols} 网格布局，共 ${frameCount} 帧
 2. 每帧尺寸完全一致，紧密排列无间隙
