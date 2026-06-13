@@ -13,6 +13,7 @@
     "@vitejs/plugin-react": "latest",
     "antd": "^6.4.3",
     "gif.js": "^0.2.0",
+    "jszip": "^3.10.1",
     "mermaid": "^11.15.0",
     "react": "latest",
     "react-dom": "latest",

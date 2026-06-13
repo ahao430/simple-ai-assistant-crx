@@ -254,6 +254,35 @@ export function GifPanel(props: {
     link.click();
   }
 
+  async function downloadFrames() {
+    if (state.frames.length === 0) return;
+
+    try {
+      const JSZip = (await import('jszip')).default;
+      const zip = new JSZip();
+
+      // 添加所有帧到 zip
+      for (let i = 0; i < state.frames.length; i++) {
+        const dataUrl = state.frames[i];
+        const base64Data = dataUrl.split(',')[1];
+        zip.file(`frame-${String(i + 1).padStart(2, '0')}.png`, base64Data, { base64: true });
+      }
+
+      // 生成 zip 文件
+      const blob = await zip.generateAsync({ type: 'blob' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.download = `gif-frames-${Date.now()}.zip`;
+      link.href = url;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      props.onShowToast('已下载帧图片压缩包');
+    } catch (error) {
+      props.onShowToast('下载失败: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  }
+
   async function copyGif() {
     if (!state.gifUrl) return;
     try {
@@ -377,6 +406,9 @@ export function GifPanel(props: {
                     <img key={index} src={frame} alt={`Frame ${index + 1}`} />
                   ))}
                 </div>
+                <Button size="small" onClick={downloadFrames} style={{ marginTop: 8 }}>
+                  打包下载帧图片
+                </Button>
               </div>
             )}
           </div>
