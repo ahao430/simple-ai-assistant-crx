@@ -350,12 +350,6 @@ export function App() {
     await loadGifHistoryUrls(gifs);
   }
 
-  async function viewGifHistory(id: string) {
-    const item = gifHistory.find(h => h.id === id);
-    if (!item) return;
-    showToast(`GIF: ${item.userPrompt.slice(0, 30)}...`);
-  }
-
   async function saveGifHistory(item: { userPrompt: string; optimizedPrompt: string; frameCount: number }, gifBlob: Blob) {
     await saveGifGeneration({
       id: crypto.randomUUID(),
@@ -833,7 +827,6 @@ export function App() {
             gifHistory={gifHistory}
             gifHistoryUrls={gifHistoryUrls}
             onDeleteHistory={removeGifHistory}
-            onViewHistory={viewGifHistory}
           />
         }
       ]} />

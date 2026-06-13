@@ -833,6 +833,57 @@ body {
   color: #e5e7eb;
 }
 
+.gif-history-detail {
+  margin-top: 16px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 8px;
+  border: 2px solid #315efb;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gif-history-detail > .meta {
+  font-size: 14px;
+  font-weight: 700;
+  color: #315efb;
+  margin-bottom: 8px;
+}
+
+.history-user-prompt {
+  padding: 12px;
+  background: white;
+  border-radius: 6px;
+  border-left: 4px solid #3b82f6;
+  color: #172033;
+  line-height: 1.6;
+  font-size: 14px;
+}
+
+.gif-history-detail .gif-result-section {
+  margin: 0;
+}
+
+.gif-history-detail .final-gif {
+  max-width: 100%;
+}
+
+.app.theme-dark .gif-history-detail {
+  background: rgba(31, 41, 55, 0.95);
+  border-color: #315efb;
+}
+
+.app.theme-dark .gif-history-detail > .meta {
+  color: #60a5fa;
+}
+
+.app.theme-dark .history-user-prompt {
+  background: #1f2937;
+  color: #e5e7eb;
+  border-left-color: #3b82f6;
+}
+
 
 .mermaid-code-block .mermaid-block {
   margin: 0;

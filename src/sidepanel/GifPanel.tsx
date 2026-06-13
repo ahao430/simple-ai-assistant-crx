@@ -25,6 +25,11 @@ interface GifGenerationState {
   isGenerating: boolean;
 }
 
+interface SelectedHistory {
+  item: GifGenerationHistory;
+  gifUrl: string;
+}
+
 export function GifPanel(props: {
   textModelOptions: SelectGroupOption[];
   textModelId: string;
@@ -41,7 +46,6 @@ export function GifPanel(props: {
   gifHistory: GifGenerationHistory[];
   gifHistoryUrls: Record<string, string>;
   onDeleteHistory: (id: string) => void;
-  onViewHistory: (id: string) => void;
 }) {
   const [form] = Form.useForm();
   const { onCompositionStart, onCompositionEnd, onKeyDown } = useTextareaSubmit(props.submitShortcut);
@@ -58,6 +62,8 @@ export function GifPanel(props: {
 
   const [frameCount, setFrameCount] = useState(8);
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
+
+  const [selectedHistory, setSelectedHistory] = useState<SelectedHistory>();
 
   const uploadFiles: UploadFile[] = referenceImages.map((url, index) => ({
     uid: `${index}`,
@@ -300,6 +306,43 @@ export function GifPanel(props: {
     }
   }
 
+  async function copyHistoryGifAsFirstFrame() {
+    if (!selectedHistory) return;
+    try {
+      // 从历史 GIF 中提取第一帧
+      const img = await loadImage(selectedHistory.gifUrl);
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error('无法创建 canvas context');
+      ctx.drawImage(img, 0, 0);
+
+      canvas.toBlob(async (blob) => {
+        if (!blob) throw new Error('无法生成图片');
+        await navigator.clipboard.write([
+          new ClipboardItem({ [blob.type]: blob })
+        ]);
+        props.onShowToast('已复制第一帧为图片');
+      });
+    } catch (error) {
+      console.error('复制失败:', error);
+      props.onShowToast('复制失败: ' + (error instanceof Error ? error.message : String(error)));
+    }
+  }
+
+  function downloadHistoryGif() {
+    if (!selectedHistory) return;
+    const link = document.createElement('a');
+    link.download = `ai-gif-${selectedHistory.item.id}.gif`;
+    link.href = selectedHistory.gifUrl;
+    link.click();
+  }
+
+  function closeHistoryDetail() {
+    setSelectedHistory(undefined);
+  }
+
   return (
     <section className="tab-panel gif-panel">
       <div className="gif-controls">
@@ -440,13 +483,23 @@ export function GifPanel(props: {
                   <img
                     src={props.gifHistoryUrls[item.id]}
                     alt={item.userPrompt}
-                    onClick={() => props.onViewHistory(item.id)}
+                    onClick={() => {
+                      setSelectedHistory({
+                        item,
+                        gifUrl: props.gifHistoryUrls[item.id]
+                      });
+                    }}
                   />
                 )}
                 <div className="gif-history-prompt">{item.userPrompt}</div>
                 <div className="gif-history-meta">{item.frameCount} 帧</div>
                 <Space size="small">
-                  <Button size="small" onClick={() => props.onViewHistory(item.id)}>查看</Button>
+                  <Button size="small" onClick={() => {
+                    setSelectedHistory({
+                      item,
+                      gifUrl: props.gifHistoryUrls[item.id]
+                    });
+                  }}>查看</Button>
                   <Popconfirm
                     title="删除这个 GIF 历史？"
                     okText="删除"
@@ -458,6 +511,33 @@ export function GifPanel(props: {
                 </Space>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {selectedHistory && (
+        <div className="gif-history-detail">
+          <div className="meta">GIF 历史详情 · {new Date(selectedHistory.item.createdAt).toLocaleString()}</div>
+
+          <div className="gif-result-section">
+            <div className="meta">用户输入</div>
+            <div className="history-user-prompt">{selectedHistory.item.userPrompt}</div>
+          </div>
+
+          <div className="gif-result-section">
+            <div className="meta">优化后的提示词</div>
+            <div className="optimized-prompt">{selectedHistory.item.optimizedPrompt}</div>
+            <Button size="small" onClick={() => props.onCopyText(selectedHistory.item.optimizedPrompt)}>复制</Button>
+          </div>
+
+          <div className="gif-result-section">
+            <div className="meta">生成的 GIF ({selectedHistory.item.frameCount} 帧)</div>
+            <img className="final-gif" src={selectedHistory.gifUrl} alt="Generated GIF" />
+            <Space>
+              <Button onClick={copyHistoryGifAsFirstFrame}>复制为图片</Button>
+              <Button onClick={downloadHistoryGif}>下载 GIF</Button>
+              <Button onClick={closeHistoryDetail}>关闭</Button>
+            </Space>
           </div>
         </div>
       )}
